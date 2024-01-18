@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from functools import cached_property
+from typing import Tuple
 
 import torch
 from kornia.contrib import connected_components
@@ -11,6 +12,7 @@ from segment_anything.utils.transforms import ResizeLongestSide
 @dataclass
 class Prompt:
     class_idx: int
+    img_size: Tuple[int, int]  # (H, W)
     pos_seeds: torch.Tensor = None
     neg_seeds: torch.Tensor = None
     box: torch.Tensor = None
@@ -126,13 +128,22 @@ class PromptExtractor:
         return logits
 
     def extract(self, seeds: bool = True, boxes: bool = True, mask: bool = False) -> list[Prompt]:
+        """
+        Extracts prompts from the predicted mask.
+        Args:
+            seeds: whether to extract seeds
+            boxes: whether to extract boxes
+            mask: whether to extract mask logits (not working yet)
+        Returns:
+            list of prompts with all coordinates in (x, y) format
+        """
         prompts = []
         for class_idx in range(self.num_classes):
             # Skip classes with no initial segmentation
             if self.seeds[class_idx] is None:
                 continue
 
-            p = Prompt(class_idx)
+            p = Prompt(class_idx, self.pred_mask.shape[-2:])
 
             if seeds:
                 p.pos_seeds = self.seeds[class_idx]
@@ -148,3 +159,40 @@ class PromptExtractor:
 
             prompts.append(p)
         return prompts
+
+def scale_coords(coords: torch.Tensor, original_size: Tuple[int, ...], target_size: Tuple[int, ...]) -> torch.Tensor:
+    """
+    Scales coordinates from original_size to target_size.
+    Args:
+        coords: tensor of shape (N, 2) with coordinates in (x, y) format
+        original_size: tuple of length (H, W) with original image size
+        target_size: tuple of length (H, W) with target image size
+    Returns:
+        tensor of shape (N, 2) with scaled coordinates
+    """
+    assert coords.ndim == 2, "coords should be 2D tensor of shape (N, 2)"
+    assert coords.shape[1] == len(original_size) == len(target_size), "coords should have same number of dimensions as original_size and target_size"
+
+    original_size = torch.tensor(original_size, dtype=torch.float)
+    target_size = torch.tensor(target_size, dtype=torch.float)
+
+    coords = coords.float()
+    coords = coords * (target_size / original_size).flip(-1) # because SAM takes points in (x, y) format, but shape is (H, W)
+    return coords.round().int()
+
+def scale_box(box: torch.Tensor, original_size: Tuple[int, ...], target_size: Tuple[int, ...]) -> torch.Tensor:
+    """
+    Scales box from original_size to target_size.
+    Args:
+        box: tensor of shape (N, 4) with box coordinates in (x_min, y_min, x_max, y_max) format
+        original_size: tuple of length (H, W) with original image size
+        target_size: tuple of length (H, W) with target image size
+    Returns:
+        tensor of shape (N, 4) with box coordinates in (x_min, y_min, x_max, y_max) format
+    """
+    assert box.ndim == 2, "box should be 2D tensor of shape (N, 4)"
+    assert box.shape[1] == 4, "box should have length 4"
+
+    box_as_coords = box.reshape(-1, 2)
+    box_as_coords = scale_coords(box_as_coords, original_size, target_size)
+    return box_as_coords.reshape(-1, 4)

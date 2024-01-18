@@ -18,6 +18,10 @@ wheels/
 *.npy
 *.ts
 model_ts*.txt
+*h5
+
+# imgs
+*.png
 
 # onnx models
 *.onnx
