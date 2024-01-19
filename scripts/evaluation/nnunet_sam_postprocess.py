@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import h5py
 import torch
@@ -12,9 +13,11 @@ from segment_anything.utils.prompt_utils import PromptExtractor
 from utils.dice_coefficient import multilabel_dice
 import seaborn as sns
 import pandas as pd
+from plot_utils import sam_prompt_debug_plots
 
 prompts2use = ['pos_points', 'neg_points']
-self_refine = True
+self_refine = False
+plot_results = True
 
 f = h5py.File('data/SegGraz_nnunet_predictions.h5', 'r')
 lbl_idx_mapping = json.loads(f.attrs['labels'])
@@ -27,9 +30,14 @@ device = "cpu"
 img_embedding_h5 = "data/Graz_img_embedding.h5"
 sam_predictor = SAMMaskDecoderHead(sam_checkpoint, model_type, device, img_embedding_h5)
 
+if plot_results:
+    dir_name = str.join('_', prompts2use) + '_self_refine' if self_refine else str.join('_', prompts2use)
+    plot_save_path = Path('/home/ron/Downloads/SAM_refine_result/' + dir_name)
+    plot_save_path.mkdir(exist_ok=True)
+    print(f'plot_save_path: {dir_name}')
+
 dsc_nnunet = []
 dsc_sam = []
-
 for img, y, file_name in tqdm(ds, unit='img'):
     y = y.unsqueeze(0).bool()
     nnunet_mask = torch.from_numpy(ds_seg_masks[file_name][:])
@@ -48,6 +56,10 @@ for img, y, file_name in tqdm(ds, unit='img'):
 
     dsc_nnunet.append(multilabel_dice(nnunet_mask.unsqueeze(0), y))
     dsc_sam.append(multilabel_dice(refined_sam_masks.unsqueeze(0), y))
+
+    if plot_results:
+        sam_prompt_debug_plots(prompt_extractor, img, nnunet_mask, refined_sam_masks, prompts2use,
+                               plot_save_path / file_name)
 
 dsc_nnunet = torch.cat(dsc_nnunet, dim=0)
 dsc_sam = torch.cat(dsc_sam, dim=0)
@@ -71,4 +83,8 @@ ax.set_xticks(range(len(plot_labels)))
 ax.set_xticklabels(plot_labels, rotation=90)
 ax.set_title(f'nnUNet DSC: {dsc_nnunet.nanmean():.5f}\nSAM DSC: {dsc_sam.nanmean():.5f}')
 plt.tight_layout()
+
+if plot_results:
+    plt.savefig(plot_save_path / 'dsc.png')
+
 plt.show()

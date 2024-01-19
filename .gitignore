@@ -18,7 +18,9 @@ wheels/
 *.npy
 *.ts
 model_ts*.txt
-*h5
+*.h5
+*.xml
+*.csv
 
 # imgs
 *.png
