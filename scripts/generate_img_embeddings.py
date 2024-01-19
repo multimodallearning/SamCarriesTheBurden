@@ -12,7 +12,7 @@ graz_img_dir = Path('data/img_only_front_all_left').glob('*.png')
 # set uo SAM
 sam_checkpoint = "data/sam_vit_h_4b8939.pth"
 model_type = "vit_h"
-device = "cpu"  # "cuda"
+device = "cuda:3" if torch.cuda.is_available() else "cpu"
 sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
 sam.to(device=device)
 predictor = SamPredictor(sam)
@@ -22,7 +22,9 @@ h5py_path = Path('data/Graz_img_embedding.h5')
 h5py_file = h5py.File(h5py_path, 'x')
 h5py_file.attrs['checkpoint'] = sam_checkpoint.split('/')[-1]
 h5py_file.attrs['img_encoder_img_size'] = sam.image_encoder.img_size
+c = 0
 for img_file in tqdm(list(graz_img_dir), unit='img', desc='Saving embeddings'):
+    c += 1
     # load image
     img = cv2.imread(str(img_file), cv2.IMREAD_GRAYSCALE)
     img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
@@ -38,5 +40,7 @@ for img_file in tqdm(list(graz_img_dir), unit='img', desc='Saving embeddings'):
     curr_group.create_dataset('features', data=predictor.features.cpu().numpy(), compression='gzip', compression_opts=9)
 
     predictor.reset_image()
-    break
+
+    if c > 10: # only for testing
+        break
 h5py_file.close()

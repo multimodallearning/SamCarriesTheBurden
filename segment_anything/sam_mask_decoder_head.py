@@ -67,7 +67,7 @@ class SAMMaskDecoderHead:
         input_labels = torch.cat(input_labels) if len(input_labels) > 0 else None
 
         sparse_embeddings, dense_embeddings = self.prompt_encoder(
-            points=(input_points, input_labels) if input_points is not None else None,
+            points=(input_points.unsqueeze(0), input_labels.unsqueeze(0)) if input_points is not None else None,
             boxes=prompt.box,
             masks=mask_prev_iter,
         )
