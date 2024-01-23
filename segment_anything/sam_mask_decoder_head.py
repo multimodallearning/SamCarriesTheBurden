@@ -6,6 +6,7 @@ import torch
 import h5py
 from segment_anything.utils.prompt_utils import Prompt, scale_box, scale_coords
 from torch.nn import functional as F
+from copy import deepcopy
 
 
 class SAMMaskDecoderHead:
@@ -26,12 +27,13 @@ class SAMMaskDecoderHead:
         del sam
 
     @torch.inference_mode()
-    def predict_mask(self, img_name: str, prompt: Prompt, prompt2use: str | List[str],
+    def predict_mask(self, img_name: str, given_prompt: Prompt, prompt2use: str | List[str],
                      mask_prev_iter: torch.Tensor = None) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         known_prompts = ['pos_points', 'neg_points', 'box']
         if isinstance(prompt2use, str):
             prompt2use = [prompt2use]
         assert all([p in known_prompts for p in prompt2use]), f'Prompt must be one of {known_prompts}'
+        prompt = deepcopy(given_prompt)
 
         if 'pos_points' in prompt2use:
             assert prompt.pos_seeds is not None, 'pos_seeds are not available'
@@ -51,7 +53,7 @@ class SAMMaskDecoderHead:
             assert prompt.box is not None, 'box is not available'
             prompt.box = prompt.box.unsqueeze(0)
             prompt.box = scale_box(prompt.box, prompt.img_size, self.img_embedding[img_name].attrs['input_size'])
-            prompt.box = prompt.box.to(self.device, non_blocking=True)
+            prompt.box = prompt.box.float().to(self.device, non_blocking=True)
         else:
             prompt.box = None
 
@@ -63,8 +65,8 @@ class SAMMaskDecoderHead:
         if prompt.neg_seeds is not None:
             input_points.append(prompt.neg_seeds)
             input_labels.append(torch.zeros(prompt.neg_seeds.shape[0]))
-        input_points = torch.cat(input_points) if len(input_points) > 0 else None
-        input_labels = torch.cat(input_labels) if len(input_labels) > 0 else None
+        input_points = torch.cat(input_points).float() if len(input_points) > 0 else None
+        input_labels = torch.cat(input_labels).int() if len(input_labels) > 0 else None
 
         sparse_embeddings, dense_embeddings = self.prompt_encoder(
             points=(input_points.unsqueeze(0), input_labels.unsqueeze(0)) if input_points is not None else None,

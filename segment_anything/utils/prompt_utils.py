@@ -178,7 +178,7 @@ def scale_coords(coords: torch.Tensor, original_size: Tuple[int, ...], target_si
 
     coords = coords.float()
     coords = coords * (target_size / original_size).flip(-1) # because SAM takes points in (x, y) format, but shape is (H, W)
-    return coords.round().int()
+    return coords
 
 def scale_box(box: torch.Tensor, original_size: Tuple[int, ...], target_size: Tuple[int, ...]) -> torch.Tensor:
     """

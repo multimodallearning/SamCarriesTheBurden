@@ -15,8 +15,8 @@ import seaborn as sns
 import pandas as pd
 from plot_utils import sam_prompt_debug_plots
 
-prompts2use = ['pos_points', 'neg_points']
-self_refine = False
+prompts2use = ['neg_points', 'pos_points']
+self_refine = True
 plot_results = True
 
 f = h5py.File('data/SegGraz_nnunet_predictions.h5', 'r')
@@ -32,7 +32,7 @@ sam_predictor = SAMMaskDecoderHead(sam_checkpoint, model_type, device, img_embed
 
 if plot_results:
     dir_name = str.join('_', prompts2use) + '_self_refine' if self_refine else str.join('_', prompts2use)
-    plot_save_path = Path('/home/ron/Downloads/SAM_refine_result/' + dir_name)
+    plot_save_path = Path('/home/ron/Downloads/SAM_refine_result/nnUNet/' + dir_name)
     plot_save_path.mkdir(exist_ok=True)
     print(f'plot_save_path: {dir_name}')
 
