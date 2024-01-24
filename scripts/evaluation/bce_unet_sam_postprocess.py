@@ -9,21 +9,21 @@ from torch.nn import functional as F
 from tqdm import tqdm
 
 from plot_utils import sam_prompt_debug_plots
-from scripts.seg_grazpedwri_dataset import SegGrazPedWriDataset
+from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
 from segment_anything.sam_mask_decoder_head import SAMMaskDecoderHead
 from segment_anything.utils.prompt_utils import PromptExtractor
 from unet.classic_u_net import UNet
 from utils.dice_coefficient import multilabel_dice
 
 prompts2use1st = ["box"]
-prompts2use2nd = ["pos_points", "neg_points"]
+prompts2use2nd = ["box"]
 self_refine = True
 plot_results = True
 
-model_id = 'ff26c51ca1a14fe1968f95c3d8729cf5'
+model_id = '404bd577195044749a1658ecd76912f7'
 cl_model = InputModel(model_id)
 model = UNet.load(cl_model.get_weights(), 'cpu').eval()
-ds = SegGrazPedWriDataset('test')
+ds = LightSegGrazPedWriDataset('test')
 
 sam_checkpoint = "data/sam_vit_h_4b8939.pth"
 model_type = "vit_h"
@@ -66,7 +66,8 @@ for img, y, file_name in tqdm(ds, unit='img'):
     dsc_sam.append(multilabel_dice(refined_sam_masks.unsqueeze(0), y))
 
     if plot_results:
-        sam_prompt_debug_plots(prompt_extractor, img, unet_mask, refined_sam_masks, prompts2use1st,
+        prompt_union = set(prompts2use1st + prompts2use2nd)
+        sam_prompt_debug_plots(prompt_extractor, img, unet_mask, refined_sam_masks, list(prompt_union),
                                plot_save_path / file_name)
 
 dsc_unet = torch.cat(dsc_unet, dim=0)
