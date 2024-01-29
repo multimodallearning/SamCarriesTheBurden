@@ -99,6 +99,9 @@ class CVATParser:
             masks = self._dict2mask_list(anatomy_dict)
 
         if self.drop_sonstiges:
+            if any([mask.anatomy == 'Sonstiges' for mask in masks]):
+                print(f'{img_name} contains mask with anatomy "Sonstiges"')
+
             masks = list(filter(lambda x: x.anatomy != 'Sonstiges', masks))
 
         return masks

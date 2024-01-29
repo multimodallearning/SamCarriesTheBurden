@@ -54,9 +54,13 @@ class LightSegGrazPedWriDataset(Dataset):
         super().__init__()
         # load data meta and other information
         self.df_meta = pd.read_csv('data/dataset.csv', index_col='filestem')
-        assert mode in ['train', 'test'], f'Unknown mode {mode}'
         # init ground truth parser considering the data split
-        xml_files = list(Path('data/cvat_annotation_xml').glob(f'annotations_{mode}[1-9].xml'))
+        if mode == 'train':
+            xml_files = list(Path('data/cvat_annotation_xml').glob(f'annotations_train[1-9].xml'))
+        elif mode in ['val', 'test']:
+            xml_files = [Path(f'data/cvat_annotation_xml/annotations_{mode}.xml')]
+        else:
+            raise ValueError(f'Unknown mode {mode}')
         self.gt_parser = CVATParser(xml_files, True, False, True)
 
         # get file names
@@ -215,8 +219,8 @@ if __name__ == '__main__':
     from matplotlib import pyplot as plt
     from numpy import ma
 
-    ds = SavedSegGrazPedWriDataset('data/seg_masks/self_404bd577195044749a1658ecd76912f7.h5')
-    # ds = LightSegGrazPedWriDataset('train')
+    # ds = SavedSegGrazPedWriDataset('data/seg_masks/self_404bd577195044749a1658ecd76912f7.h5')
+    ds = LightSegGrazPedWriDataset('val')
     idx = randint(0, len(ds) - 1)
     x, y, filename = ds[idx]
     fig, ax = plt.subplots(1, 2)
