@@ -30,7 +30,7 @@ class PromptExtractor:
         assert pred_mask.ndim == 3, "pred_mask should be 3D tensor of shape (C, H, W)"
         assert pred_mask.dtype == torch.bool, "pred_mask should be boolean tensor"
 
-        self.pred_mask = pred_mask  # todo handle case with empty mask
+        self.pred_mask = pred_mask.clone() if use_ccl else pred_mask
         self.num_classes = pred_mask.shape[0]
 
         if use_ccl:
@@ -173,8 +173,8 @@ def scale_coords(coords: torch.Tensor, original_size: Tuple[int, ...], target_si
     assert coords.ndim == 2, "coords should be 2D tensor of shape (N, 2)"
     assert coords.shape[1] == len(original_size) == len(target_size), "coords should have same number of dimensions as original_size and target_size"
 
-    original_size = torch.tensor(original_size, dtype=torch.float)
-    target_size = torch.tensor(target_size, dtype=torch.float)
+    original_size = torch.tensor(original_size, dtype=torch.float, device=coords.device)
+    target_size = torch.tensor(target_size, dtype=torch.float, device=coords.device)
 
     coords = coords.float()
     coords = coords * (target_size / original_size).flip(-1) # because SAM takes points in (x, y) format, but shape is (H, W)

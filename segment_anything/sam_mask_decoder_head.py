@@ -12,7 +12,7 @@ from copy import deepcopy
 class SAMMaskDecoderHead:
     def __init__(self, sam_checkpoint: str | Path, model_type: str, device: str, img_embedding_h5: str | Path):
         sam_checkpoint = Path(sam_checkpoint)
-        img_embedding_h5 = Path(img_embedding_h5)
+        img_embedding_h5 = Path(img_embedding_h5) if isinstance(img_embedding_h5, str) else img_embedding_h5
         self.device = torch.device(device)
 
         h5_file = h5py.File(img_embedding_h5, 'r')
@@ -61,10 +61,10 @@ class SAMMaskDecoderHead:
         input_labels = []
         if prompt.pos_seeds is not None:
             input_points.append(prompt.pos_seeds)
-            input_labels.append(torch.ones(prompt.pos_seeds.shape[0]))
+            input_labels.append(torch.ones(prompt.pos_seeds.shape[0], device=self.device))
         if prompt.neg_seeds is not None:
             input_points.append(prompt.neg_seeds)
-            input_labels.append(torch.zeros(prompt.neg_seeds.shape[0]))
+            input_labels.append(torch.zeros(prompt.neg_seeds.shape[0], device=self.device))
         input_points = torch.cat(input_points).float() if len(input_points) > 0 else None
         input_labels = torch.cat(input_labels).int() if len(input_labels) > 0 else None
 

@@ -1,13 +1,17 @@
+import json
 from pathlib import Path
 
 import albumentations as A
 import cv2
+import h5py
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
-from scripts.cvat_parser import CVATParser
+from utils.cvat_parser import CVATParser
+from torch.nn import functional as F
+from random import randint
 
 
 class LightSegGrazPedWriDataset(Dataset):
@@ -115,13 +119,105 @@ class LightSegGrazPedWriDataset(Dataset):
         return x, y.float(), file_name
 
 
+class SavedSegGrazPedWriDataset(Dataset):
+    # calculated over training split
+    IMG_MEAN = LightSegGrazPedWriDataset.IMG_MEAN
+    IMG_STD = LightSegGrazPedWriDataset.IMG_STD
+    # copy all attributes from LightSegGrazPedWriDataset
+    BONE_LABEL = LightSegGrazPedWriDataset.BONE_LABEL
+    BONE_LABEL_MAPPING = {k: v for k, v in zip(BONE_LABEL, range(len(BONE_LABEL)))}
+    N_CLASSES = len(BONE_LABEL)
+
+    def __init__(self, saved_seg_path: str, rescale_HW: tuple = (384, 224)):
+        """
+        Dataset that loads images with their stored segmentation. Not include images from training or testing split.
+        :param saved_seg_path: path to saved segmentation. Has to be h5 file.
+        :param rescale_HW: rescale image and ground truth (should be close to ratio of 1.75 as possible). None will not rescale.
+        """
+
+        super().__init__()
+        h5_file = h5py.File(saved_seg_path, 'r')
+        lbl_loaded = json.loads(h5_file.attrs['labels'])
+        assert lbl_loaded == self.BONE_LABEL_MAPPING, 'Loaded labels do not match'
+
+        # load data meta and other information
+        self.img_path = Path('data/img_only_front_all_left')
+        self.ds_saved_seg = h5_file['segmentation_mask']
+        self.df_meta = pd.read_csv('data/dataset.csv', index_col='filestem')
+        # init ground truth parser considering the data split
+        xml_files = list(Path('data/cvat_annotation_xml').glob(f'annotations_*.xml'))
+        gt_parser = CVATParser(xml_files, True, False, True)
+
+        # get file names
+        # filter files to front view only
+        projection_mask = self.df_meta['projection'] == 1
+        files_without_annotations_mask = ~ self.df_meta.index.isin(gt_parser.available_file_names)
+        self.available_file_names = self.df_meta[projection_mask & files_without_annotations_mask].index.tolist()
+
+        # init transformation
+        self.resize_lbl = lambda x: F.interpolate(x.float().unsqueeze(0), size=rescale_HW, mode='nearest').squeeze(0)
+
+    def __len__(self):
+        return len(self.available_file_names)
+
+    def __getitem__(self, index) -> (torch.Tensor, torch.Tensor, str):
+        """
+        get item by index
+        :param index: index of item
+        :return: image, ground truth, file name
+        """
+        file_name = self.available_file_names[index]
+
+        # segmentation mask
+        seg_masks = torch.from_numpy(self.ds_saved_seg[file_name][:])
+        y = self.resize_lbl(seg_masks)
+
+        # numpy image to tensor and add channel dimension
+        img = cv2.imread(str(self.img_path.joinpath(file_name).with_suffix('.png')), cv2.IMREAD_GRAYSCALE)
+        img = cv2.resize(img, y.shape[-2:][::-1], interpolation=cv2.INTER_LINEAR)
+        x = torch.from_numpy(img).unsqueeze(0).float()
+        x /= 255
+
+        return x, y, file_name
+
+
+class CombinedSegGrazPedWriDataset(Dataset):
+    """
+    Dataset that combines dataset with ground truth and dataset with pseudo label. Retuns all files from dataset with ground truth,
+    but for each file from dataset with ground truth, a random file from dataset with pseudo label is returned.
+    """
+    # calculated over training split
+    IMG_MEAN = LightSegGrazPedWriDataset.IMG_MEAN
+    IMG_STD = LightSegGrazPedWriDataset.IMG_STD
+    # copy all attributes from LightSegGrazPedWriDataset
+    BONE_LABEL = LightSegGrazPedWriDataset.BONE_LABEL
+    BONE_LABEL_MAPPING = {k: v for k, v in zip(BONE_LABEL, range(len(BONE_LABEL)))}
+    N_CLASSES = len(BONE_LABEL)
+
+    def __init__(self, ds_with_gt: LightSegGrazPedWriDataset, ds_with_pseudo_lbl: SavedSegGrazPedWriDataset):
+        super().__init__()
+        self.ds_with_gt = ds_with_gt
+        self.ds_with_pseudo_lbl = ds_with_pseudo_lbl
+
+    def __len__(self):
+        return len(self.ds_with_gt)
+
+    def __getitem__(self, index):
+        x1, y1, file_name1 = self.ds_with_gt[index]
+        # get random index from dataset with pseudo label
+        rnd_idx = randint(0, len(self.ds_with_pseudo_lbl) - 1)
+        x2, y2, file_name2 = self.ds_with_pseudo_lbl[rnd_idx]
+
+        return {'gt': (x1, y1, file_name1), 'pseudo_lbl': (x2, y2, file_name2)}
+
+
 if __name__ == '__main__':
     from matplotlib import pyplot as plt
     from numpy import ma
-    from random import randint
 
-    ds = LightSegGrazPedWriDataset('train')
-    idx = 1  # randint(0, len(ds) - 1)
+    ds = SavedSegGrazPedWriDataset('data/seg_masks/self_404bd577195044749a1658ecd76912f7.h5')
+    # ds = LightSegGrazPedWriDataset('train')
+    idx = randint(0, len(ds) - 1)
     x, y, filename = ds[idx]
     fig, ax = plt.subplots(1, 2)
     ax[0].imshow(x.squeeze(0), cmap='gray')
@@ -131,4 +227,4 @@ if __name__ == '__main__':
         plt.imshow(x.squeeze(0), cmap='gray')
         plt.imshow(ma.masked_where(mask == 0, mask), alpha=0.5)
         plt.title(lbl)
-    plt.show()
+        plt.show()

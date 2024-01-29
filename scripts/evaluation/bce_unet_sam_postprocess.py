@@ -16,9 +16,10 @@ from unet.classic_u_net import UNet
 from utils.dice_coefficient import multilabel_dice
 
 prompts2use1st = ["box"]
-prompts2use2nd = ["box"]
+prompts2use2nd = ["pos_points", "neg_points"]
 self_refine = True
 plot_results = True
+use_ccl = True
 
 model_id = '404bd577195044749a1658ecd76912f7'
 cl_model = InputModel(model_id)
@@ -35,6 +36,7 @@ if plot_results:
     dir_name = str.join('_', prompts2use1st)
     if self_refine:
         dir_name += '_self_refine_' + str.join('_', prompts2use2nd)
+    dir_name += '' if use_ccl else '_no_ccl'
     plot_save_path = Path('/home/ron/Downloads/SAM_refine_result/UNet/' + dir_name)
     plot_save_path.mkdir(exist_ok=True)
     print(f'plot_save_path: {dir_name}')
@@ -50,7 +52,7 @@ for img, y, file_name in tqdm(ds, unit='img'):
         y_hat = torch.sigmoid(y_hat) > 0.5
     unet_mask = y_hat.clone()
 
-    prompt_extractor = PromptExtractor(unet_mask, use_ccl=True)
+    prompt_extractor = PromptExtractor(unet_mask, use_ccl=use_ccl)
     prompts = prompt_extractor.extract()
 
     refined_sam_masks = torch.zeros_like(unet_mask, dtype=bool)
