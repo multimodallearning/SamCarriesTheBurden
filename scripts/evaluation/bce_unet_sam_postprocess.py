@@ -15,8 +15,8 @@ from segment_anything.utils.prompt_utils import PromptExtractor
 from unet.classic_u_net import UNet
 from utils.dice_coefficient import multilabel_dice
 
-prompts2use1st = ["box"]
-prompts2use2nd = ["pos_points", "neg_points"]
+prompts2use1st = ["pos_points", "neg_points"]
+prompts2use2nd = ["box"]
 self_refine = True
 plot_results = True
 use_ccl = True
