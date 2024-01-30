@@ -15,11 +15,12 @@ from utils.dice_coefficient import multilabel_dice
 def forward_bce(mode: str, data_loader: DataLoader, epoch: int,  # have to given each call
                 # can be provided via kwargs dict
                 model: nn.Module, optimizer: Optimizer, device: torch.device, bce_pos_weight: torch.Tensor,
-                norm: Normalize, loss_collector: MeanMetric, data_aug: AugmentationSequential = None) -> torch.Tensor:
+                norm: Normalize, loss_collector: MeanMetric, data_aug: AugmentationSequential = None) -> (
+torch.Tensor, torch.Tensor):
     # set model mode according to mode
     if mode == 'train':
         model.train()
-    elif mode == 'test':
+    elif mode in ['test', 'val']:
         model.eval()
         data_aug = None  # disable data augmentation during testing
     else:
@@ -58,4 +59,4 @@ def forward_bce(mode: str, data_loader: DataLoader, epoch: int,  # have to given
                          values=dsc.nanmean(0).cpu().numpy(),
                          xlabels=data_loader.dataset.BONE_LABEL, xaxis='class', yaxis='dice')
 
-    return dsc.nanmean()
+    return dsc.nanmean(), loss_collector.compute()
