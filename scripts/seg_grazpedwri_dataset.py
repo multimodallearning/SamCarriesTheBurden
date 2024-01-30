@@ -147,16 +147,9 @@ class SavedSegGrazPedWriDataset(Dataset):
         # load data meta and other information
         self.img_path = Path('data/img_only_front_all_left')
         self.ds_saved_seg = h5_file['segmentation_mask']
-        self.df_meta = pd.read_csv('data/dataset.csv', index_col='filestem')
-        # init ground truth parser considering the data split
-        xml_files = list(Path('data/cvat_annotation_xml').glob(f'annotations_*.xml'))
-        gt_parser = CVATParser(xml_files, True, False, True)
 
         # get file names
-        # filter files to front view only
-        projection_mask = self.df_meta['projection'] == 1
-        files_without_annotations_mask = ~ self.df_meta.index.isin(gt_parser.available_file_names)
-        self.available_file_names = self.df_meta[projection_mask & files_without_annotations_mask].index.tolist()
+        self.available_file_names = list(self.ds_saved_seg.keys())
 
         # init transformation
         self.resize_lbl = lambda x: F.interpolate(x.float().unsqueeze(0), size=rescale_HW, mode='nearest').squeeze(0)
