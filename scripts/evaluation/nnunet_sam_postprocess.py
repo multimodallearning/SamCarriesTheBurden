@@ -23,7 +23,7 @@ plot_results = True
 f = h5py.File('data/SegGraz_nnunet_predictions.h5', 'r')
 lbl_idx_mapping = json.loads(f.attrs['labels'])
 ds_seg_masks = f['nnUNet_prediction']
-ds = LightSegGrazPedWriDataset('test')
+ds = LightSegGrazPedWriDataset('val')
 
 sam_checkpoint = "data/sam_vit_h_4b8939.pth"
 model_type = "vit_h"

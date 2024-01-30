@@ -9,7 +9,7 @@ from segment_anything.utils.prompt_utils import PromptExtractor
 
 
 def sam_prompt_debug_plots(prompt_extractor: PromptExtractor, img: torch.Tensor, initial_seg: torch.Tensor,
-                           sam_seg: torch.Tensor, prompts2use: List[str], save_path: Path):
+                           sam_seg: torch.Tensor, sam_score: torch.Tensor, prompts2use: List[str], save_path: Path):
     assert initial_seg.shape == sam_seg.shape, f"expected initial_seg and sam_seg to have same shape, got {initial_seg.shape} and {sam_seg.shape} respectively"
 
     img = img.squeeze()
@@ -38,7 +38,7 @@ def sam_prompt_debug_plots(prompt_extractor: PromptExtractor, img: torch.Tensor,
         # sam segmentation
         axes[2].imshow(img, 'gray')
         axes[2].imshow(sam_seg[prompt.class_idx], alpha=sam_seg[prompt.class_idx].float())
-        axes[2].set_title('sam segmentation')
+        axes[2].set_title(f'sam segmentation\nest DSC: {sam_score[prompt.class_idx]:.4f}')
 
         # image
         axes[3].imshow(img, 'gray')
