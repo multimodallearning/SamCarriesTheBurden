@@ -10,11 +10,9 @@ from tqdm import tqdm
 from plot_utils import plot_rnd_walk
 from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
 from unet.classic_u_net import UNet
+from utils import segmentation_preprocessing
 from utils.dice_coefficient import multilabel_dice
 from utils.random_walk import random_walk
-from utils import segmentation_preprocessing
-from kornia.morphology import erosion
-from skimage.morphology import disk
 
 plot_results = True
 
@@ -40,11 +38,11 @@ for img, y, file_name in tqdm(ds, unit='img'):
 
     # preprocess mask
     preproc_mask = unet_mask.clone()
-    erosion_kernel = torch.from_numpy(disk(4, dtype=int))
     preproc_mask = segmentation_preprocessing.remove_all_but_largest_connected_component(preproc_mask, num_iter=250)
-    preproc_mask = erosion(preproc_mask.unsqueeze(0).float(), kernel=erosion_kernel).squeeze().bool()
+    preproc_mask = segmentation_preprocessing.erode_mask_with_disc_struct(preproc_mask, radius=4)
 
     img = img.squeeze(0)
+    img = (img * 255).byte()
     p_hat_rnd_walk = random_walk(img, preproc_mask)
     refined_mask = p_hat_rnd_walk > 0.5
 
@@ -53,6 +51,7 @@ for img, y, file_name in tqdm(ds, unit='img'):
 
     if plot_results:
         plot_rnd_walk(img, unet_mask, preproc_mask, p_hat_rnd_walk, plot_save_path / file_name)
+
 
 dsc_unet = torch.cat(dsc_unet, dim=0)
 dsc_rnd_walk = torch.cat(dsc_rnd_walk, dim=0)

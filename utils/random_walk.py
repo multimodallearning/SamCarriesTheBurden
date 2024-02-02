@@ -2,14 +2,15 @@ import torch
 from scipy.sparse import csr_matrix
 import pyamg
 from torch.nn import functional as F
+from utils import segmentation_preprocessing
 
 
 def laplace_matrix(img):
     if not img.dtype is torch.float:
         raise TypeError('an image of type float is expected.')
     # given: parameters and image dimensions
-    sigma = 3
-    lambda_ = 0.1
+    sigma = 10#7.5
+    lambda_ = 1
     H, W = img.size()
     # given: create 1D index vector
     ind = torch.arange(H * W).view(H, W)
@@ -89,16 +90,22 @@ def sparse_cols(S, slice):
 @torch.inference_mode()
 def random_walk(img: torch.Tensor, initial_segmentation: torch.Tensor):
     assert img.ndim == 2, 'img should be 2D'
+    assert img.dtype == torch.uint8, 'img should be in range [0, 255]'
     H, W = img.shape
     assert initial_segmentation.ndim == 3
     assert initial_segmentation.shape[1] == H and initial_segmentation.shape[2] == W
+
+    # add a background class to the initial segmentation
+    background = torch.logical_not(initial_segmentation.any(0))
+    background = segmentation_preprocessing.erode_mask_with_disc_struct(background.unsqueeze(0), radius=12).squeeze()
+    initial_segmentation = torch.cat([background.unsqueeze(0), initial_segmentation], dim=0)
 
     linear_idx = torch.arange(H * W).view(H, W)
     idx_mask = initial_segmentation.any(0)
     seeded = linear_idx[idx_mask]
     unseeded = linear_idx[~idx_mask]
 
-    L = laplace_matrix(img)
+    L = laplace_matrix(img.float())
     L_u = sparse_rows(sparse_cols(L, unseeded), unseeded)
     B = sparse_rows(sparse_cols(L, unseeded), seeded)
 
@@ -113,5 +120,7 @@ def random_walk(img: torch.Tensor, initial_segmentation: torch.Tensor):
     p_hat[unseeded] = u_u
 
     p_hat = p_hat.view(H, W, -1).permute(2, 0, 1)
+    # remove the background class
+    p_hat = p_hat[1:]
 
     return p_hat
