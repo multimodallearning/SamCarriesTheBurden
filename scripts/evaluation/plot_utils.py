@@ -46,3 +46,27 @@ def sam_prompt_debug_plots(prompt_extractor: PromptExtractor, img: torch.Tensor,
         plt.tight_layout()
         plt.savefig(save_path / f'class_{prompt.class_idx}.png', dpi=200)
         plt.close(fig)
+
+def plot_rnd_walk(img:torch.Tensor, initial_masks: torch.Tensor, preprocessed_masks:torch.Tensor,
+                  p_hat_rnd_walk: torch.Tensor, save_path: Path):
+    save_path.mkdir(exist_ok=True)
+    for cls_idx, (init_mask, preproc_mask, p_hat) in enumerate(zip(initial_masks, preprocessed_masks, p_hat_rnd_walk)):
+        fig, axs = plt.subplots(1, 4, figsize=(16, 5))
+        axs[0].imshow(img, cmap='gray')
+        axs[0].imshow(init_mask, alpha=init_mask.float())
+        axs[0].set_title('Initial Mask')
+
+        axs[1].imshow(img, cmap='gray')
+        axs[1].imshow(preproc_mask, alpha=preproc_mask.float())
+        axs[1].set_title('Preprocessed Mask')
+
+        axs[2].imshow(img, cmap='gray')
+        axs[2].imshow(p_hat, alpha=(p_hat > 0.5).float())
+        axs[2].set_title('Random Walk')
+
+        axs[3].imshow(img, cmap='gray')
+
+        plt.tight_layout()
+        plt.savefig(save_path / f'class_{cls_idx}.png', dpi=200)
+        plt.close(fig)
+

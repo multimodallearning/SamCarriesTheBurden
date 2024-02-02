@@ -5,6 +5,7 @@ from typing import Tuple
 import torch
 from kornia.contrib import connected_components
 from torch.nn import functional as F
+from utils.segmentation_preprocessing import remove_all_but_largest_connected_component
 
 from segment_anything.utils.transforms import ResizeLongestSide
 
@@ -34,20 +35,8 @@ class PromptExtractor:
         self.num_classes = pred_mask.shape[0]
 
         if use_ccl:
-            lbl = connected_components(pred_mask.unsqueeze(1).float(), num_iterations=250)  # (C, 1, H, W)
-            for class_idx, component_map in enumerate(lbl):
-                # pred_mask is empty
-                if component_map.sum() == 0:
-                    continue
-
-                # supress all but the largest connected component
-                components = component_map.unique()  # (num_components)
-                # remove background component
-                components = components[components != 0]
-                component_areas = (component_map == components.view(-1, 1, 1)).sum((1, 2))  # (num_components)
-                largest_component_idx = components[component_areas.argmax()]
-
-                self.pred_mask[class_idx] = component_map == largest_component_idx
+            # 250 iterations covers the longest size of the biggest radius/ulna
+            self.pred_mask = remove_all_but_largest_connected_component(self.pred_mask, num_iter=250)
 
     def _extract_seeds(self, class_idx: int) -> torch.Tensor:
         assert class_idx < self.num_classes, "class_idx exceeds number of classes"
