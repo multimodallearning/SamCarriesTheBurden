@@ -12,6 +12,7 @@ from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset, SavedSegGr
 from unet.classic_u_net import UNet
 from unet_training.hyper_params import hp_parser
 from torchmetrics import MeanMetric
+from pathlib import Path
 
 pretrained_model_id = '0427c1de20c140c5bff7284c7a4ae614'
 cl_model = InputModel(pretrained_model_id)
@@ -20,7 +21,9 @@ hp_parser.add_argument('--data_aug', default=False, action=argparse.BooleanOptio
                        help='whether to use data augmentation')
 hp_parser.add_argument('--train_from_scratch', default=True, action=argparse.BooleanOptionalAction,
                        help='whether to train from scratch')
-hp_parser.add_argument('--pseudo_label', choices=['init', 'sam'], help='pseudo label method')
+hp_parser.add_argument('--split500', type=bool, default=True,
+                       help='whether to use the predefined 500 split instead of all available data')
+hp_parser.add_argument('--pseudo_label', choices=['init', 'sam', 'nnunet'], help='pseudo label method')
 hp = hp_parser.parse_args()
 
 tags = []
@@ -51,8 +54,13 @@ data_aug_transform = K.container.AugmentationSequential(
 norm = K.Normalize(LightSegGrazPedWriDataset.IMG_MEAN, LightSegGrazPedWriDataset.IMG_STD)
 
 # define data loaders
+saved_seg_path = Path('data/seg_masks')
+if hp.pseudo_label == 'nnunet':
+    saved_seg_path = saved_seg_path.joinpath('SegGraz_nnunet_predictions.h5')
+else:
+    saved_seg_path = saved_seg_path.joinpath(f'{hp.pseudo_label}_{pretrained_model_id}_500.h5')
 dl_kwargs = {'num_workers': 4, 'pin_memory': True} if torch.cuda.is_available() else {}
-train_dl = DataLoader(SavedSegGrazPedWriDataset(f'data/seg_masks/{hp.pseudo_label}_{pretrained_model_id}_500.h5'),
+train_dl = DataLoader(SavedSegGrazPedWriDataset(str(saved_seg_path), use_500_split=hp.split500),
                       batch_size=hp.batch_size, shuffle=True, drop_last=True, **dl_kwargs)
 val_dl = DataLoader(LightSegGrazPedWriDataset('val'), batch_size=hp.infer_batch_size, shuffle=False, drop_last=False,
                     **dl_kwargs)
@@ -70,7 +78,8 @@ loss_collector = MeanMetric().to(device)
 
 fwd_kwargs = {'model': model, 'optimizer': optimizer, 'device': device, 'norm': norm, 'loss_collector': loss_collector,
               'data_aug': data_aug_transform if hp.data_aug else None,
-              'bce_pos_weight': LightSegGrazPedWriDataset.POS_CLASS_WEIGHT.view(-1, 1, 1).expand(-1, 384, 224).to(device)}
+              'bce_pos_weight': LightSegGrazPedWriDataset.POS_CLASS_WEIGHT.view(-1, 1, 1).expand(-1, 384, 224).to(
+                  device)}
 
 for epoch in trange(hp.epochs, desc='training'):
     forward_bce('train', train_dl, epoch, **fwd_kwargs)

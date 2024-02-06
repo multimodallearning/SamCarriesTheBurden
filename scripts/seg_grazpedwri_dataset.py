@@ -1,4 +1,5 @@
 import json
+import logging
 from pathlib import Path
 
 import albumentations as A
@@ -132,10 +133,11 @@ class SavedSegGrazPedWriDataset(Dataset):
     BONE_LABEL_MAPPING = {k: v for k, v in zip(BONE_LABEL, range(len(BONE_LABEL)))}
     N_CLASSES = len(BONE_LABEL)
 
-    def __init__(self, saved_seg_path: str, rescale_HW: tuple = (384, 224)):
+    def __init__(self, saved_seg_path: str, use_500_split: bool, rescale_HW: tuple = (384, 224)):
         """
         Dataset that loads images with their stored segmentation. Not include images from training or testing split.
         :param saved_seg_path: path to saved segmentation. Has to be h5 file.
+        :param use_500_split: if True, only use the 500 split of once randomly sampled unlabeled data.
         :param rescale_HW: rescale image and ground truth (should be close to ratio of 1.75 as possible). None will not rescale.
         """
 
@@ -149,7 +151,11 @@ class SavedSegGrazPedWriDataset(Dataset):
         self.ds_saved_seg = h5_file['segmentation_mask']
 
         # get file names
-        self.available_file_names = list(self.ds_saved_seg.keys())
+        if use_500_split:
+            self.available_file_names = pd.read_csv('data/500unlabeled_sample.csv')['filestem'].tolist()
+        else:
+            logging.warning('Using all available files in saved segmentations!')
+            self.available_file_names = list(self.ds_saved_seg.keys())
 
         # init transformation
         self.resize_lbl = lambda x: F.interpolate(x.float().unsqueeze(0), size=rescale_HW, mode='nearest').squeeze(0)
@@ -212,8 +218,8 @@ if __name__ == '__main__':
     from matplotlib import pyplot as plt
     from numpy import ma
 
-    # ds = SavedSegGrazPedWriDataset('data/seg_masks/self_404bd577195044749a1658ecd76912f7.h5')
-    ds = LightSegGrazPedWriDataset('val')
+    ds = SavedSegGrazPedWriDataset('data/seg_masks/self_404bd577195044749a1658ecd76912f7.h5', True)
+    #ds = LightSegGrazPedWriDataset('train')
     idx = randint(0, len(ds) - 1)
     x, y, filename = ds[idx]
     fig, ax = plt.subplots(1, 2)

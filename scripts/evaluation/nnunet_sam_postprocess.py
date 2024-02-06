@@ -20,7 +20,7 @@ prompts2use2nd = ["box"]
 self_refine = False
 plot_results = True
 
-f = h5py.File('data/SegGraz_nnunet_predictions.h5', 'r')
+f = h5py.File('data/seg_masks/SegGraz_nnunet_predictions.h5', 'r')
 lbl_idx_mapping = json.loads(f.attrs['labels'])
 ds_seg_masks = f['nnUNet_prediction']
 ds = LightSegGrazPedWriDataset('val')
@@ -28,7 +28,7 @@ ds = LightSegGrazPedWriDataset('val')
 sam_checkpoint = "data/sam_vit_h_4b8939.pth"
 model_type = "vit_h"
 device = "cpu"
-img_embedding_h5 = "data/Graz_img_embedding.h5"
+img_embedding_h5 = "data/graz_sam_img_embedding.h5"
 sam_predictor = SAMMaskDecoderHead(sam_checkpoint, model_type, device, img_embedding_h5)
 
 if plot_results:
@@ -53,6 +53,7 @@ for img, y, file_name in tqdm(ds, unit='img'):
     prompts = prompt_extractor.extract()
 
     refined_sam_masks = torch.zeros_like(nnunet_mask, dtype=bool)
+    est_dice = torch.full((ds.N_CLASSES,), float('nan'))
     for prompt in prompts:
         mask, mask_score, mask_prev_iter = sam_predictor.predict_mask(file_name, prompt, prompts2use1st)
         if self_refine:
@@ -60,13 +61,15 @@ for img, y, file_name in tqdm(ds, unit='img'):
 
         mask = F.interpolate(mask.float(), size=nnunet_mask.shape[-2:], mode='nearest-exact')
         refined_sam_masks[prompt.class_idx] = mask.squeeze()
+        # convert Jaccard to Dice
+        est_dice[prompt.class_idx] = 2 * mask_score / (1 + mask_score)
 
     dsc_nnunet.append(multilabel_dice(nnunet_mask.unsqueeze(0), y))
     dsc_sam.append(multilabel_dice(refined_sam_masks.unsqueeze(0), y))
 
     if plot_results:
         prompt_union = set(prompts2use1st + prompts2use2nd)
-        sam_prompt_debug_plots(prompt_extractor, img, nnunet_mask, refined_sam_masks, list(prompt_union),
+        sam_prompt_debug_plots(prompt_extractor, img, nnunet_mask, refined_sam_masks, est_dice, list(prompt_union),
                                plot_save_path / file_name)
 
 dsc_nnunet = torch.cat(dsc_nnunet, dim=0)
