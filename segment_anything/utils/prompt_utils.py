@@ -4,7 +4,6 @@ from typing import Tuple
 
 import torch
 from torch.nn import functional as F
-from seg_preprocessing.segmentation_preprocessing import remove_all_but_one_connected_component
 
 from segment_anything.utils.transforms import ResizeLongestSide
 
@@ -20,23 +19,17 @@ class Prompt:
 
 
 class PromptExtractor:
-    def __init__(self, pred_mask: torch.Tensor, use_ccl: bool = True):
+    def __init__(self, pred_mask: torch.Tensor):
         """
         Extracts prompts from a predicted mask.
         Args:
             pred_mask: 3D tensor of shape (C, H, W) with boolean values
-            use_ccl: whether to use connected components labeling to extract the largest connected component
         """
         assert pred_mask.ndim == 3, "pred_mask should be 3D tensor of shape (C, H, W)"
+        assert pred_mask.dtype == torch.bool, "pred_mask should be boolean tensor"
 
-        self.pred_mask = pred_mask.clone() if use_ccl else pred_mask
+        self.pred_mask = pred_mask
         self.num_classes = pred_mask.shape[0]
-
-        if use_ccl:
-            # 250 iterations covers the longest size of the biggest radius/ulna
-            self.pred_mask = remove_all_but_one_connected_component(self.pred_mask, 'highest_probability', num_iter=250)
-
-        self.pred_mask = self.pred_mask.bool()
 
     def _extract_seeds(self, class_idx: int) -> torch.Tensor:
         assert class_idx < self.num_classes, "class_idx exceeds number of classes"
