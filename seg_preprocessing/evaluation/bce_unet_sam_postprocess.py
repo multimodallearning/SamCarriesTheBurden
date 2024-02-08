@@ -60,13 +60,13 @@ for img, y, file_name in tqdm(ds, unit='img'):
     with torch.inference_mode():
         x = (img - ds.IMG_MEAN) / ds.IMG_STD
         y_hat = model(x.unsqueeze(0)).squeeze(0)
-        y_hat = torch.sigmoid(y_hat) > 0.5
-    unet_mask = y_hat.clone()
+        y_hat = torch.sigmoid(y_hat)
+    y_hat = y_hat.clone()
 
-    prompt_extractor = PromptExtractor(unet_mask, use_ccl=use_ccl)
+    prompt_extractor = PromptExtractor(y_hat, use_ccl=use_ccl)
     prompts = prompt_extractor.extract()
 
-    refined_sam_masks = torch.zeros_like(unet_mask, dtype=bool)
+    refined_sam_masks = torch.zeros_like(y_hat, dtype=bool)
     # init with nan to avoid confusion with 0
     est_dice = torch.full((ds.N_CLASSES,), float('nan'))
     for prompt in prompts:
@@ -74,18 +74,19 @@ for img, y, file_name in tqdm(ds, unit='img'):
         if self_refine:
             mask, mask_score, _ = sam_predictor.predict_mask(file_name, prompt, prompts2use2nd, mask_prev_iter)
 
-        mask = F.interpolate(mask.float(), size=unet_mask.shape[-2:], mode='nearest-exact')
+        mask = F.interpolate(mask.float(), size=y_hat.shape[-2:], mode='nearest-exact')
         refined_sam_masks[prompt.class_idx] = mask.squeeze()
         # convert Jaccard to Dice
         est_dice[prompt.class_idx] = 2 * mask_score / (1 + mask_score)
 
+    unet_mask = y_hat > 0.5
     dsc_unet.append(multilabel_dice(unet_mask.unsqueeze(0), y))
     dsc_sam.append(multilabel_dice(refined_sam_masks.unsqueeze(0), y))
     dsc_sam_est.append(est_dice)
 
     if plot_results:
         prompt_union = set(prompts2use1st + prompts2use2nd)
-        sam_prompt_debug_plots(prompt_extractor, img, unet_mask, refined_sam_masks, est_dice, list(prompt_union),
+        sam_prompt_debug_plots(prompt_extractor, img, y_hat, refined_sam_masks, est_dice, list(prompt_union),
                                plot_save_path / file_name)
 
 dsc_unet = torch.cat(dsc_unet, dim=0)

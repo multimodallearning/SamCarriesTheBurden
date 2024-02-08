@@ -104,16 +104,16 @@ def opening_with_connected_component(prob_mask: torch.Tensor, structuring_elemen
         radius = 1
 
     binary_mask = prob_mask > 0.5
-    kernel = torch.from_numpy(struct(radius, dtype=int)).to(prob_mask.device)
+    kernel = torch.from_numpy(struct(radius, dtype=int)).to(prob_mask)
     # Erosion
-    eroded_mask = erosion(binary_mask.unsqueeze(0).float(), kernel).squeeze(0)
+    eroded_mask = erosion(binary_mask.unsqueeze(0).float(), kernel, engine='convolution').squeeze(0)
     # Connected component
     if selection is not None:
         prob_mask = prob_mask * eroded_mask
         eroded_mask = remove_all_but_one_connected_component(prob_mask, selection, num_iter)
         eroded_mask = eroded_mask > 0.5
     # Dilation
-    opened_mask = dilation(eroded_mask.unsqueeze(0).float(), kernel).squeeze(0)
+    opened_mask = dilation(eroded_mask.unsqueeze(0).float(), kernel, engine='convolution').squeeze(0)
     refined_mask = opened_mask * prob_mask
 
     return refined_mask
@@ -128,8 +128,8 @@ if __name__ == '__main__':
     init[0, 200:220, 200:220] = 0.9
     init[1, 100:150, 100:150] = 0.8
     init[1, 200:220, 200:220] = 0.6
-    processed = opening_with_connected_component(init, structuring_element='star', radius=3, num_iter=256,
-                                                 selection='highest_probability')
+    processed = opening_with_connected_component(init, structuring_element='star', radius=10, num_iter=256,
+                                                 selection=None)
 
     fig, axs = plt.subplots(1, 2)
     axs[0].imshow(init[0].numpy())
