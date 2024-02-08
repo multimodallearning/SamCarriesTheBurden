@@ -51,7 +51,13 @@ model = UNet.load(cl_model.get_weights(), 'cpu').eval()
 model.to(device)
 ds = LightSegGrazPedWriDataset('val')
 
-study = optuna.create_study(direction="maximize", study_name="HPO segmentation preprocessing")
+search_space = {
+    "structuring_element": ["square", "disk", "diamond", "star"],
+    "radius": list(range(9)),
+    "selection": ["largest", "highest_probability", None]
+}
+study = optuna.create_study(direction="maximize", study_name="HPO segmentation preprocessing",
+                            sampler=optuna.samplers.GridSampler(search_space))
 study.set_user_attr("clearml_model_id", model_id)
 study.set_metric_names(["dsc_diff_score"])
 
