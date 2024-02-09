@@ -59,7 +59,6 @@ search_space = {
 study = optuna.create_study(direction="maximize", study_name="HPO segmentation preprocessing",
                             sampler=optuna.samplers.GridSampler(search_space))
 study.set_user_attr("clearml_model_id", model_id)
-study.set_metric_names(["dsc_diff_score"])
 
 study.optimize(objective, n_trials=200)
 print(study.best_params, study.best_value)

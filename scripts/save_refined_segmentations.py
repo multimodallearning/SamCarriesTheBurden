@@ -10,11 +10,12 @@ from torch.nn import functional as F
 from tqdm import tqdm
 
 from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
+from seg_preprocessing.segmentation_preprocessing import remove_all_but_one_connected_component, dilation
 from segment_anything.sam_mask_decoder_head import SAMMaskDecoderHead
 from segment_anything.utils.prompt_utils import PromptExtractor
 from unet.classic_u_net import UNet
 
-device = "cuda:3" if torch.cuda.is_available() else "cpu"
+device = "cuda:4" if torch.cuda.is_available() else "cpu"
 
 model_id = '0427c1de20c140c5bff7284c7a4ae614'
 cl_model = InputModel(model_id)
@@ -23,7 +24,7 @@ H, W = 384, 224
 
 sam_checkpoint = "data/sam_vit_h_4b8939.pth"
 model_type = "vit_h"
-img_embedding_h5 = "data/Graz_img_embedding.h5"
+img_embedding_h5 = "data/graz_sam_img_embedding.h5"
 sam_predictor = SAMMaskDecoderHead(sam_checkpoint, model_type, device, img_embedding_h5)
 
 n_files = 500
@@ -45,17 +46,24 @@ for img_name in tqdm(available_files, unit='img', desc='Refine segmentation'):
     with torch.inference_mode():
         img = (img - LightSegGrazPedWriDataset.IMG_MEAN) / LightSegGrazPedWriDataset.IMG_STD
         y_hat = model(img.to(device)).squeeze(0)
-        y_hat = torch.sigmoid(y_hat) > 0.5
+        y_hat = torch.sigmoid(y_hat)
     unet_mask = y_hat.clone()
 
-    prompt_extractor = PromptExtractor(unet_mask, use_ccl=True)
+    # preprocessing
+    preprocess_mask = y_hat.clone()
+    preprocess_mask = remove_all_but_one_connected_component(preprocess_mask, 'highest_probability', num_iter=250)
+    preprocess_mask = preprocess_mask > 0.5
+    kernel = torch.tensor([[0, 1, 0], [1, 1, 1], [0, 1, 0]], dtype=torch.float, device=device)
+    preprocess_mask = dilation(preprocess_mask.unsqueeze(0).float(), kernel.float(),
+                               engine='convolution').squeeze().bool()
+    prompt_extractor = PromptExtractor(preprocess_mask)
     prompts = prompt_extractor.extract()
 
     refined_sam_masks = torch.zeros_like(unet_mask, dtype=bool)
     est_dice = torch.full((len(unet_mask),), float('nan'))
     for prompt in prompts:
-        _, _, mask_prev_iter = sam_predictor.predict_mask(img_name, prompt, "box")
-        mask, mask_score, _ = sam_predictor.predict_mask(img_name, prompt, ["pos_points", "neg_points"], mask_prev_iter)
+        _, _, mask_prev_iter = sam_predictor.predict_mask(img_name, prompt, "pos_points")
+        mask, mask_score, _ = sam_predictor.predict_mask(img_name, prompt, ["box"], mask_prev_iter)
 
         mask = F.interpolate(mask.float(), size=unet_mask.shape[-2:], mode='nearest-exact')
         refined_sam_masks[prompt.class_idx] = mask.squeeze()

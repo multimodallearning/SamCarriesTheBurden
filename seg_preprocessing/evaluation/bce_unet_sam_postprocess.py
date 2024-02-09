@@ -14,12 +14,12 @@ from segment_anything.sam_mask_decoder_head import SAMMaskDecoderHead
 from segment_anything.utils.prompt_utils import PromptExtractor
 from unet.classic_u_net import UNet
 from utils.dice_coefficient import multilabel_dice
+from seg_preprocessing.segmentation_preprocessing import remove_all_but_one_connected_component, dilation
 
-prompts2use1st = ["box"]
-prompts2use2nd = ["pos_points", "neg_points"]
+prompts2use1st = ["pos_points"]
+prompts2use2nd = ["box"]
 self_refine = True
-plot_results = False
-use_ccl = True
+plot_results = True
 
 model_id = ['0427c1de20c140c5bff7284c7a4ae614',  # initial training
             '0ea1c877eedc446b828048456ffd561a',  # sam pseudo labels
@@ -46,7 +46,6 @@ if plot_results:
     dir_name = str.join('_', prompts2use1st)
     if self_refine:
         dir_name += '_self_refine_' + str.join('_', prompts2use2nd)
-    dir_name += '' if use_ccl else '_no_ccl'
     plot_save_path = Path(f'/home/ron/Downloads/SAM_refine_result/{model_id}/{sam_type}/' + dir_name)
     plot_save_path.mkdir(exist_ok=True, parents=True)
     print(f'plot_save_path: {dir_name}')
@@ -62,8 +61,14 @@ for img, y, file_name in tqdm(ds, unit='img'):
         y_hat = model(x.unsqueeze(0)).squeeze(0)
         y_hat = torch.sigmoid(y_hat)
     y_hat = y_hat.clone()
-
-    prompt_extractor = PromptExtractor(y_hat, use_ccl=use_ccl)
+    # preprocessing
+    preprocess_mask = y_hat.clone()
+    preprocess_mask = remove_all_but_one_connected_component(preprocess_mask, 'highest_probability', num_iter=250)
+    preprocess_mask = preprocess_mask > 0.5
+    kernel = torch.tensor([[0, 1, 0], [1, 1, 1], [0, 1, 0]], dtype=torch.float)
+    preprocess_mask = dilation(preprocess_mask.unsqueeze(0).float(), kernel.float(),
+                               engine='convolution').squeeze().bool()
+    prompt_extractor = PromptExtractor(preprocess_mask)
     prompts = prompt_extractor.extract()
 
     refined_sam_masks = torch.zeros_like(y_hat, dtype=bool)
