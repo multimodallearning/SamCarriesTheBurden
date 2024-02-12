@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 from plot_utils import plot_rnd_walk
 from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
-from unet.classic_u_net import UNet
+from custom_arcitecture.classic_u_net import UNet
 from seg_preprocessing import segmentation_preprocessing
 from utils.dice_coefficient import multilabel_dice
 from utils.random_walk import random_walk

@@ -9,7 +9,7 @@ from tqdm import trange
 
 from unet_training.forward_func import forward_bce
 from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
-from unet.classic_u_net import UNet
+from custom_arcitecture.classic_u_net import UNet
 from unet_training.hyper_params import hp_parser
 from torchmetrics import MeanMetric
 

@@ -9,7 +9,7 @@ from clearml import InputModel
 from tqdm import tqdm
 
 from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
-from unet.classic_u_net import UNet
+from custom_arcitecture.classic_u_net import UNet
 
 device = "cuda:3" if torch.cuda.is_available() else "cpu"
 

@@ -13,7 +13,7 @@ from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
 from seg_preprocessing.segmentation_preprocessing import remove_all_but_one_connected_component, dilation
 from segment_anything.sam_mask_decoder_head import SAMMaskDecoderHead
 from segment_anything.utils.prompt_utils import PromptExtractor
-from unet.classic_u_net import UNet
+from custom_arcitecture.classic_u_net import UNet
 
 device = "cuda:4" if torch.cuda.is_available() else "cpu"
 

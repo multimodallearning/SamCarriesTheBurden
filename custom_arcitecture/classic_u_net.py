@@ -3,7 +3,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from unet.modelio import LoadableModel, store_config_args
+from custom_arcitecture.modelio import LoadableModel, store_config_args
 
 
 class DoubleConv(nn.Module):

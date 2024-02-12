@@ -8,7 +8,7 @@ from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
 from seg_preprocessing.segmentation_preprocessing import *
 from segment_anything.sam_mask_decoder_head import SAMMaskDecoderHead
 from segment_anything.utils.prompt_utils import PromptExtractor
-from unet.classic_u_net import UNet
+from custom_arcitecture.classic_u_net import UNet
 from utils.dice_coefficient import multilabel_dice
 
 
