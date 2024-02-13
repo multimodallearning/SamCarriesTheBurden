@@ -1,10 +1,11 @@
 from abc import ABC, abstractmethod
 
+import torch
 from torch.nn import functional as F
 
 from segment_anything.sam_mask_decoder_head import SAMMaskDecoderHead
 from segment_anything.utils.prompt_utils import PromptExtractor
-from segmentation_preprocessing import *
+from utils.segmentation_preprocessing import *
 
 
 class SegRefiner(ABC):
@@ -14,13 +15,13 @@ class SegRefiner(ABC):
 
 
 class SegEnhance:
-    def __init__(self, refiner: SegRefiner, ccl_selection: str, morph_op: str, struct_element: str, radius: int,
+    def __init__(self, refiner: SegRefiner, ccl_selection: str | None, morph_op: str, struct_element: str, radius: int,
                  device: str):
         """
         Takes an initial segmentation mask and refines it with given segmentation refiner.
         Args:
             refiner: segmentation refiner
-            ccl_selection: selection of connected component. Valid values: 'largest', 'highest_probability'
+            ccl_selection: selection of connected component. Valid values: 'largest', 'highest_probability'. Choose None for connected component analysis.
             morph_op: choose morphological operation. Valid values: 'erosion', 'dilation'
             struct_element: structuring element for morphological operation. Valid values: 'square', 'disk', 'diamond', 'star'
             radius: radius of the structuring element. Choose 0 for identity mapping.
@@ -55,15 +56,16 @@ class SegEnhance:
         else:
             self.morph_op = lambda mask: morph_op(mask, kernel, engine='convolution')
 
+    @torch.inference_mode()
     def enhance(self, seg: torch.Tensor, file_name: str = None) -> torch.Tensor:
         assert seg.shape[-2:] == torch.Size([384, 224]) and self.num_iter == 250, "Please refine params!"
         assert seg.ndim == 3, "seg should be 3D tensor of shape (C, H, W)"
 
         seg = self.ccl(seg)  # HPO found no benefit from morphological operation before connected component labeling
         seg = self.morph_op(seg.unsqueeze(0).float()).squeeze(0)
-        seg = self.refiner.refine(seg, file_name)
+        result = self.refiner.refine(seg, file_name)
 
-        return seg
+        return result  # could also return a tuple of seg and est_dice
 
 
 class SAMSegRefiner(SegRefiner):
@@ -83,23 +85,30 @@ class SAMSegRefiner(SegRefiner):
         if isinstance(prompts2use[0], list):
             self.prompts2use1st = prompts2use[0]
             self.prompts2use2nd = prompts2use[1]
+            self.self_refine = True
         else:
             self.prompts2use1st = prompts2use
             self.prompts2use2nd = None
+            self.self_refine = False
 
     def refine(self, seg: torch.Tensor, file_name: str) -> torch.Tensor:
-        prompt_extractor = PromptExtractor(seg.bool())
+        seg = seg.bool()
+        prompt_extractor = PromptExtractor(seg)
         prompts = prompt_extractor.extract()
 
+        est_dice = torch.full((seg.shape[0],), float('nan'))
         for prompt in prompts:
-            mask, _, mask_prev_iter = self.sam_predictor.predict_mask(file_name, prompt, self.prompts2use1st)
+            mask, mask_score, mask_prev_iter = self.sam_predictor.predict_mask(file_name, prompt, self.prompts2use1st)
             if self.prompts2use2nd is not None:
-                mask, _, _ = self.sam_predictor.predict_mask(file_name, prompt, self.prompts2use2nd, mask_prev_iter)
+                mask, mask_score, _ = self.sam_predictor.predict_mask(file_name, prompt, self.prompts2use2nd,
+                                                                      mask_prev_iter)
 
             mask = F.interpolate(mask.float(), size=seg.shape[-2:], mode='nearest-exact')
             seg[prompt.class_idx] = mask.squeeze()
+            # convert Jaccard to Dice
+            est_dice[prompt.class_idx] = 2 * mask_score / (1 + mask_score)
 
-        return seg
+        return seg, est_dice
 
 
 if __name__ == '__main__':

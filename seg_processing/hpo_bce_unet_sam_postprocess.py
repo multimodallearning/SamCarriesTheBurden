@@ -1,15 +1,15 @@
 import optuna
 from clearml import InputModel
 from joblib import dump
-from torch.nn import functional as F
 from torch.cuda import amp
+from pathlib import Path
 
-from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
-from utils.segmentation_preprocessing import *
-from segment_anything.sam_mask_decoder_head import SAMMaskDecoderHead
-from segment_anything.utils.prompt_utils import PromptExtractor
 from custom_arcitecture.classic_u_net import UNet
+from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
+from segment_anything.sam_mask_decoder_head import SAMMaskDecoderHead
 from utils.dice_coefficient import multilabel_dice
+from utils.seg_refinement import SAMSegRefiner, SegEnhance
+from utils.segmentation_preprocessing import *
 
 
 @torch.inference_mode()
@@ -17,22 +17,19 @@ def objective(trial: optuna.Trial):
     prompt_choices = ["box", "pos_points neg_points", "pos_points"]
     prompts2use1st = trial.suggest_categorical('prompts2use1st', prompt_choices).split()
     prompts2use2nd = trial.suggest_categorical('prompts2use2nd', prompt_choices + [None])
-    prompts2use2nd = prompts2use2nd.split() if prompts2use2nd is not None else None
 
-    struct = {
-        'square': square,
-        'disk': disk,
-        'diamond': diamond,
-        'star': star
-    }[trial.suggest_categorical('structuring_element', ['square', 'disk', 'diamond', 'star'])]
-    radius = trial.suggest_int('radius', 0, 8)
-    if struct == square and radius == 0:
-        radius = 1
-    kernel = torch.from_numpy(struct(radius, dtype=int)).to(device)
-    morph_op = {
-        'erosion': erosion,
-        'dilation': dilation
-    }[trial.suggest_categorical('morph_op', ['erosion', 'dilation'])]
+    if prompts2use2nd is None:
+        prompts2use = prompts2use1st
+    else:
+        prompts2use = [prompts2use1st, prompts2use2nd.split()]
+
+    sam_refiner = SAMSegRefiner('SAM', device, prompts2use)
+    seg_processor = SegEnhance(sam_refiner,
+                               "highest_probability",
+                               trial.suggest_categorical('morph_op', ['erosion', 'dilation']),
+                               trial.suggest_categorical('structuring_element', ['square', 'disk', 'diamond', 'star']),
+                               trial.suggest_int('radius', 0, 8),
+                               device)
 
     dsc_unet = []
     dsc_sam = []
@@ -44,26 +41,8 @@ def objective(trial: optuna.Trial):
         y_hat = model(x.unsqueeze(0)).squeeze(0)
         y_hat = torch.sigmoid(y_hat)
 
-        # preprocessing
-        preprocess_mask = y_hat.clone()
-        preprocess_mask = remove_all_but_one_connected_component(preprocess_mask, 'highest_probability',
-                                                                 num_iter=trial.study.user_attrs['num_iter'])
-        preprocess_mask = preprocess_mask > 0.5
         with amp.autocast():
-            preprocess_mask = morph_op(preprocess_mask.unsqueeze(0).float(), kernel.float(),
-                                   engine='convolution').squeeze().bool()
-
-        prompt_extractor = PromptExtractor(preprocess_mask)
-        prompts = prompt_extractor.extract()
-
-        refined_sam_masks = torch.zeros_like(y_hat, dtype=bool)
-        for prompt in prompts:
-            mask, mask_score, mask_prev_iter = sam_predictor.predict_mask(file_name, prompt, prompts2use1st)
-            if prompts2use2nd is not None:
-                mask, mask_score, _ = sam_predictor.predict_mask(file_name, prompt, prompts2use2nd, mask_prev_iter)
-
-            mask = F.interpolate(mask.float(), size=y_hat.shape[-2:], mode='nearest-exact')
-            refined_sam_masks[prompt.class_idx] = mask.squeeze()
+            refined_sam_masks, _ = seg_processor.enhance(y_hat, file_name)
 
         unet_mask = y_hat > 0.5
         dsc_unet.append(multilabel_dice(unet_mask.unsqueeze(0), y))
@@ -79,7 +58,7 @@ def objective(trial: optuna.Trial):
 
 
 device = 'cuda:4' if torch.cuda.is_available() else 'cpu'
-model_id = '0427c1de20c140c5bff7284c7a4ae614'  # initial training
+model_id = '2bd2f4be80b9446286416993ba6a87c1'  # initial training
 cl_model = InputModel(model_id)
 model = UNet.load(cl_model.get_weights(), device).eval()
 model.to(device)
@@ -100,9 +79,10 @@ search_space = {
 study = optuna.create_study(direction="maximize", study_name=f"SAM refinement study for {model_id}",
                             sampler=optuna.samplers.GridSampler(search_space))
 study.set_user_attr("model_id", model_id)
-study.set_user_attr("num_iter", 250)
 
-study.optimize(objective, n_trials=1000)
+study.optimize(objective, n_trials=float('inf'))
 print(study.best_params, study.best_value)
 
-dump(study, f"seg_preprocessing/hpo_sam_refinement_{model_id}.pkl")
+save_path = Path(f"seg_processing/hpo_results/{model_id}")
+save_path.mkdir(exist_ok=True, parents=True)
+dump(study, save_path / "grid_search_sam_refine.pkl")
