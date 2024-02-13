@@ -12,11 +12,5 @@ hp_parser.add_argument('--infer_batch_size', type=int, default=16, help='batch s
 hp_parser.add_argument('--weight_decay', type=float, default=0, help='weight decay used by optimizer')
 hp_parser.add_argument('--epochs', type=int, default=500, help='number of epochs for training')
 
-# lr scheduler: reduce on plateau
-hp_parser.add_argument('--lr_patience', type=int, default=400, help='number of epochs to wait before reducing lr')
-hp_parser.add_argument('--lr_gamma', type=float, default=0.98, help='factor to reduce lr')
-hp_parser.add_argument('--lr_scheduler', default=True, action=argparse.BooleanOptionalAction,
-                       help='whether to use lr scheduler')
-
 # architecture
 hp_parser.add_argument('--n_last_channel', type=int, default=128, help='number of channels before the last convolution')

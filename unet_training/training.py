@@ -15,6 +15,10 @@ from torchmetrics import MeanMetric
 
 hp_parser.add_argument('--data_aug', default=False, action=argparse.BooleanOptionalAction,
                        help='whether to use data augmentation')
+hp_parser.add_argument('--architecture', default='unet', choices=['unet', 'lraspp_on_sam'],
+                       help='which architecture to use')
+hp_parser.add_argument('--lr_scheduler', default=False, action=argparse.BooleanOptionalAction,
+                       help='whether to use lr scheduler')
 hp = hp_parser.parse_args()
 
 tags = []
@@ -22,7 +26,8 @@ if hp.data_aug:
     tags.append('data_aug')
 if hp.lr_scheduler:
     tags.append('lr_scheduler')
-task = Task.init(project_name='Kids Bone Checker/Bone segmentation', task_name=f'initial on training data',
+task = Task.init(project_name='Kids Bone Checker/Bone segmentation',
+                 task_name=f'initial on training data cosine lr scheduler',
                  auto_connect_frameworks=False, tags=tags)
 # init pytorch
 torch.manual_seed(hp.seed)
@@ -31,10 +36,10 @@ device = torch.device(f'cuda:{hp.gpu_id}' if torch.cuda.is_available() else 'cpu
 # data augmentation
 data_aug_transform = K.container.AugmentationSequential(
     K.RandomAffine(degrees=25, translate=(0.2, 0.2), scale=(0.9, 1.1), p=0.5),
-    #K.RandomGaussianNoise(std=0.1, p=0.1),
-    #K.RandomGaussianBlur(kernel_size=(9, 9), sigma=(0.5, 1.0), p=0.1),
-    #K.RandomBrightness((0.75, 1.25), p=0.15),
-    #K.RandomContrast((0.75, 1.25), p=0.15),
+    # K.RandomGaussianNoise(std=0.1, p=0.1),
+    # K.RandomGaussianBlur(kernel_size=(9, 9), sigma=(0.5, 1.0), p=0.1),
+    # K.RandomBrightness((0.75, 1.25), p=0.15),
+    # K.RandomContrast((0.75, 1.25), p=0.15),
     data_keys=["image", "mask"],
 )
 
@@ -49,10 +54,15 @@ val_dl = DataLoader(LightSegGrazPedWriDataset('val'), batch_size=hp.infer_batch_
 
 # define model
 n_classes = train_dl.dataset.N_CLASSES
-model = UNet(1, n_classes).to(device)
+if hp.architecture == 'unet':
+    model = UNet(1, n_classes)
+else:
+    raise NotImplementedError('Unknown architecture')
+
+model.to(device)
 
 optimizer = torch.optim.AdamW(model.parameters(), lr=hp.lr, weight_decay=hp.weight_decay)
-scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=hp.lr_gamma)
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=hp.epochs, eta_min=hp.lr / 100)
 
 loss_collector = MeanMetric().to(device)
 
@@ -65,13 +75,10 @@ for epoch in trange(hp.epochs, desc='training'):
     forward_bce('val', val_dl, epoch, **fwd_kwargs)
 
     if hp.lr_scheduler:
-        if epoch >= hp.lr_patience:
-            scheduler.step()
-
+        scheduler.step()
         # log learning rate
         task.get_logger().report_scalar(title='Learning rate', series='lr', value=scheduler.get_last_lr()[0],
                                         iteration=epoch)
-
 
 # save model to ClearML
 save_path = gettempdir() + '/bone_segmentator.pth'
