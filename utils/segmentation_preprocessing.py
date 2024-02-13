@@ -7,9 +7,9 @@ from skimage.morphology import disk, square, diamond, star
 def remove_all_but_one_connected_component(prob_mask: torch.Tensor, selection: str,
                                            num_iter: int) -> torch.Tensor:
     """
-    Removes all but the one connected component from a probability mask.
+    Removes all but the one connected component from a mask.
     Args:
-        prob_mask: segmentation mask in range [0, 1] of shape (C, H, W)
+        prob_mask: segmentation mask of shape (C, H, W)
         selection: method to select the connected component. Options: 'largest', 'highest_probability'
         num_iter: number of iterations for connected components labeling. Should be set to the longest size of the
                     biggest connected component.
@@ -18,9 +18,8 @@ def remove_all_but_one_connected_component(prob_mask: torch.Tensor, selection: s
     """
 
     assert prob_mask.ndim == 3, "segmentation_mask should be 3D tensor of shape (C, H, W)"
-    assert prob_mask.dtype == torch.float, "segmentation_mask should be float tensor"
 
-    bin_mask = (prob_mask > 0.5).float()
+    bin_mask = (prob_mask.float() > 0.5).float()
     lbl = connected_components(bin_mask.unsqueeze(1), num_iterations=num_iter).int()  # (C, 1, H, W)
     refined_mask = torch.zeros_like(prob_mask)
     for class_idx, component_map in enumerate(lbl):
@@ -38,6 +37,7 @@ def remove_all_but_one_connected_component(prob_mask: torch.Tensor, selection: s
             winner_idx = components[component_areas.argmax()]
         elif selection == 'highest_probability':
             # select the connected component with the highest average probability
+            assert prob_mask.dtype == torch.float, "prob_mask should be probabilities"
             prob_map = prob_mask[class_idx].unsqueeze(0)  # (1, H, W)
             component_bool_idx = component_map == components.view(-1, 1, 1)  # (num_components, H, W)
             component_areas = component_bool_idx.sum((1, 2))  # (num_components)
@@ -117,7 +117,6 @@ def opening_with_connected_component(prob_mask: torch.Tensor, structuring_elemen
     refined_mask = opened_mask * prob_mask
 
     return refined_mask
-
 
 if __name__ == '__main__':
     from matplotlib import pyplot as plt

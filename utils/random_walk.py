@@ -1,7 +1,7 @@
 import torch
 from scipy.sparse import csr_matrix
 import pyamg
-from seg_preprocessing import segmentation_preprocessing
+from utils import segmentation_preprocessing
 
 
 def laplace_matrix(img):

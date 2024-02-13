@@ -3,7 +3,7 @@ import torch
 from clearml import InputModel
 
 from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
-from seg_preprocessing.segmentation_preprocessing import opening_with_connected_component
+from utils.segmentation_preprocessing import opening_with_connected_component
 from custom_arcitecture.classic_u_net import UNet
 from utils.dice_coefficient import multilabel_dice
 from joblib import dump

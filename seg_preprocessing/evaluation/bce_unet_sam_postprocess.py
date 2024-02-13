@@ -14,7 +14,7 @@ from segment_anything.sam_mask_decoder_head import SAMMaskDecoderHead
 from segment_anything.utils.prompt_utils import PromptExtractor
 from custom_arcitecture.classic_u_net import UNet
 from utils.dice_coefficient import multilabel_dice
-from seg_preprocessing.segmentation_preprocessing import remove_all_but_one_connected_component, dilation
+from utils.segmentation_preprocessing import remove_all_but_one_connected_component, dilation
 
 prompts2use1st = ["pos_points"]
 prompts2use2nd = ["box"]
