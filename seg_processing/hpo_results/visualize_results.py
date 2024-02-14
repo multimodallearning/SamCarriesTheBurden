@@ -10,7 +10,7 @@ study_file = Path('seg_processing/hpo_results') / model_id / (hpo_study + '.pkl'
 
 # Load the study
 study = load(study_file)
-df = study.trials_dataframe().sort_values('value', ascending=True)
+df = study.trials_dataframe().sort_values('value', ascending=False)
 
 # Visualize
 vis.plot_contour(study)

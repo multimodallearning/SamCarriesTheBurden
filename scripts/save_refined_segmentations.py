@@ -6,37 +6,46 @@ import h5py
 import pandas as pd
 import torch
 from clearml import InputModel
-from torch.nn import functional as F
 from tqdm import tqdm
 
-from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
-from utils.segmentation_preprocessing import remove_all_but_one_connected_component, dilation
-from segment_anything.sam_mask_decoder_head import SAMMaskDecoderHead
-from segment_anything.utils.prompt_utils import PromptExtractor
 from custom_arcitecture.classic_u_net import UNet
+from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
+from utils.seg_refinement import SegEnhance, SAMSegRefiner
 
 device = "cuda:4" if torch.cuda.is_available() else "cpu"
 
-model_id = '0427c1de20c140c5bff7284c7a4ae614'
+model_id = '2bd2f4be80b9446286416993ba6a87c1'
 cl_model = InputModel(model_id)
 model = UNet.load(cl_model.get_weights(), device).eval().to(device)
 H, W = 384, 224
 
-sam_checkpoint = "data/sam_vit_h_4b8939.pth"
-model_type = "vit_h"
-img_embedding_h5 = "data/graz_sam_img_embedding.h5"
-sam_predictor = SAMMaskDecoderHead(sam_checkpoint, model_type, device, img_embedding_h5)
+refine_params = {
+    'prompts2use': [["box"], ["pos_points", "neg_points"]],
+    'ccl_selection': 'highest_probability',
+    'morph_op': 'dilation',
+    'struct_elem': 'square',
+    'radius': 8,
+}
+sam_refiner = SAMSegRefiner('SAM', device, refine_params['prompts2use'])
+seg_processor = SegEnhance(sam_refiner, refine_params['ccl_selection'], refine_params['morph_op'],
+                           refine_params['struct_elem'], refine_params['radius'], device)
+
+print(f'Refine model {model_id} segmentation with {refine_params}')
 
 n_files = 500
 img_dir = Path('data/img_only_front_all_left')
 available_files = pd.read_csv(f'data/{n_files}unlabeled_sample.csv', index_col='filestem').index.tolist()
 
 # create h5 file
-h5py_path = Path(f'data/seg_masks/sam_{model_id}_{n_files}.h5')
+h5py_path = Path(f'data/seg_masks/{model_id}')
+h5py_path.mkdir(parents=True, exist_ok=True)
+id_str = str.join('_', refine_params['prompts2use'][0]) + '_refine_' + str.join('_', refine_params['prompts2use'][1])
+h5py_path = h5py_path / f'sam_{id_str}_{n_files}.h5'
 
 h5py_file = h5py.File(h5py_path, 'w')
 # store labels and their index
 h5py_file.attrs['labels'] = json.dumps(LightSegGrazPedWriDataset.BONE_LABEL_MAPPING)
+h5py_file.attrs['refine_params'] = json.dumps(refine_params)
 
 for img_name in tqdm(available_files, unit='img', desc='Refine segmentation'):
     img_file = img_dir / (img_name + '.png')
@@ -50,24 +59,8 @@ for img_name in tqdm(available_files, unit='img', desc='Refine segmentation'):
     unet_mask = y_hat.clone()
 
     # preprocessing
-    preprocess_mask = y_hat.clone()
-    preprocess_mask = remove_all_but_one_connected_component(preprocess_mask, 'highest_probability', num_iter=250)
-    preprocess_mask = preprocess_mask > 0.5
-    kernel = torch.tensor([[0, 1, 0], [1, 1, 1], [0, 1, 0]], dtype=torch.float, device=device)
-    preprocess_mask = dilation(preprocess_mask.unsqueeze(0).float(), kernel.float(),
-                               engine='convolution').squeeze().bool()
-    prompt_extractor = PromptExtractor(preprocess_mask)
-    prompts = prompt_extractor.extract()
+    refined_sam_masks, est_dice = seg_processor.enhance(y_hat, img_name)
 
-    refined_sam_masks = torch.zeros_like(unet_mask, dtype=bool)
-    est_dice = torch.full((len(unet_mask),), float('nan'))
-    for prompt in prompts:
-        _, _, mask_prev_iter = sam_predictor.predict_mask(img_name, prompt, "pos_points")
-        mask, mask_score, _ = sam_predictor.predict_mask(img_name, prompt, ["box"], mask_prev_iter)
-
-        mask = F.interpolate(mask.float(), size=unet_mask.shape[-2:], mode='nearest-exact')
-        refined_sam_masks[prompt.class_idx] = mask.squeeze()
-        est_dice[prompt.class_idx] = 2 * mask_score / (1 + mask_score)
     refined_sam_masks = refined_sam_masks.cpu().numpy()
     est_dice = est_dice.cpu().numpy()
 

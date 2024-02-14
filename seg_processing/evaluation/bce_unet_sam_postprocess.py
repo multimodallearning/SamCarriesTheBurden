@@ -48,7 +48,7 @@ for img, y, file_name in tqdm(ds, unit='img'):
         y_hat = model(x.unsqueeze(0)).squeeze(0)
         y_hat = torch.sigmoid(y_hat)
     y_hat = y_hat.clone()
-    # preprocessing
+    # refinement
     refined_sam_masks, est_dice = seg_processor.enhance(y_hat, file_name)
 
     unet_mask = y_hat > 0.5

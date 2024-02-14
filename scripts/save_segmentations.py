@@ -8,12 +8,13 @@ import torch
 from clearml import InputModel
 from tqdm import tqdm
 
-from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
 from custom_arcitecture.classic_u_net import UNet
+from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
 
 device = "cuda:3" if torch.cuda.is_available() else "cpu"
 
-model_id = '0427c1de20c140c5bff7284c7a4ae614'
+model_id = '2bd2f4be80b9446286416993ba6a87c1'
+print(f'Using model: {model_id}')
 cl_model = InputModel(model_id)
 model = UNet.load(cl_model.get_weights(), device).eval().to(device)
 H, W = 384, 224
@@ -23,7 +24,9 @@ img_dir = Path('data/img_only_front_all_left')
 available_files = pd.read_csv(f'data/{n_files}unlabeled_sample.csv', index_col='filestem').index.tolist()
 
 # create h5 file
-h5py_path = Path(f'data/seg_masks/init_{model_id}_{n_files}.h5')
+h5py_path = Path(f'data/seg_masks/{model_id}')
+h5py_path.mkdir(parents=True, exist_ok=True)
+h5py_path = h5py_path / f'raw_segmentations_{n_files}.h5'
 h5py_file = h5py.File(h5py_path, 'w')
 # store labels and their index
 h5py_file.attrs['labels'] = json.dumps(LightSegGrazPedWriDataset.BONE_LABEL_MAPPING)
