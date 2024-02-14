@@ -28,8 +28,9 @@ class SegEnhance:
             device: pytorch device to use for computation
         """
 
+        self.last_preprocessed_seg = None
         self.refiner = refiner
-        self.num_iter = 250  # due to the biggest connected component (ulna by given image size)
+        self.num_iter = None  # will be calculated on the fly
         if ccl_selection is None:
             self.ccl = lambda mask: mask
         else:
@@ -58,11 +59,11 @@ class SegEnhance:
 
     @torch.inference_mode()
     def enhance(self, seg: torch.Tensor, file_name: str = None) -> torch.Tensor:
-        assert seg.shape[-2:] == torch.Size([384, 224]) and self.num_iter == 250, "Please refine params!"
         assert seg.ndim == 3, "seg should be 3D tensor of shape (C, H, W)"
+        self.num_iter = max(seg.shape[-2:])  # give connected component analysis space to spread its wings
 
         seg = self.ccl(seg)  # HPO found no benefit from morphological operation before connected component labeling
-        seg = self.morph_op(seg.unsqueeze(0).float()).squeeze(0)
+        self.last_preprocessed_seg = self.morph_op(seg.unsqueeze(0).float()).squeeze(0)
         result = self.refiner.refine(seg, file_name)
 
         return result  # could also return a tuple of seg and est_dice

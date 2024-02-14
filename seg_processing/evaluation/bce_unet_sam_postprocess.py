@@ -15,8 +15,8 @@ from utils.dice_coefficient import multilabel_dice
 from utils.seg_refinement import SAMSegRefiner, SegEnhance
 
 prompts2use1st = ["pos_points"]
-prompts2use2nd = ["box"]
-plot_results = False
+prompts2use2nd = ["pos_points", "neg_points"]
+plot_results = True
 
 model_id = ['2bd2f4be80b9446286416993ba6a87c1',  # initial training
             '0ea1c877eedc446b828048456ffd561a',  # sam pseudo labels
@@ -27,7 +27,7 @@ ds = LightSegGrazPedWriDataset('val')
 
 sam_type = ['SAM', 'MedSAM'][0]
 sam_refiner = refiner = SAMSegRefiner(sam_type, 'cpu', [prompts2use1st, prompts2use2nd])
-seg_processor = SegEnhance(refiner, 'highest_probability', 'dilation', 'disk', 1, 'cpu')
+seg_processor = SegEnhance(refiner, 'highest_probability', 'erosion', 'disk', 1, 'cpu')
 
 if plot_results:
     dir_name = str.join('_', prompts2use1st)
@@ -58,8 +58,8 @@ for img, y, file_name in tqdm(ds, unit='img'):
 
     if plot_results:
         prompt_union = set(prompts2use1st + prompts2use2nd)
-        sam_prompt_debug_plots(PromptExtractor(unet_mask), img, y_hat, refined_sam_masks, est_dice, list(prompt_union),
-                               plot_save_path / file_name)
+        sam_prompt_debug_plots(PromptExtractor(seg_processor.last_preprocessed_seg > 0.5), img, y_hat, refined_sam_masks,
+                               est_dice, list(prompt_union), plot_save_path / file_name)
 
 dsc_unet = torch.cat(dsc_unet, dim=0)
 dsc_sam = torch.cat(dsc_sam, dim=0)

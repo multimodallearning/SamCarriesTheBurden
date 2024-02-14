@@ -27,3 +27,4 @@ class BasicBlock(nn.Module):
         features = self.features(x)
         activation = self.relu(identity + features)
         return activation
+
