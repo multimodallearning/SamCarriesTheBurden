@@ -218,8 +218,9 @@ if __name__ == '__main__':
     from matplotlib import pyplot as plt
     from numpy import ma
 
-    ds = SavedSegGrazPedWriDataset('data/seg_masks/self_404bd577195044749a1658ecd76912f7.h5', True)
-    #ds = LightSegGrazPedWriDataset('train')
+    #ds = SavedSegGrazPedWriDataset('data/seg_masks/self_404bd577195044749a1658ecd76912f7.h5', True)
+    ds = LightSegGrazPedWriDataset('train')
+    print(f'Number of classes: {ds.N_CLASSES}')
     idx = randint(0, len(ds) - 1)
     x, y, filename = ds[idx]
     fig, ax = plt.subplots(1, 2)

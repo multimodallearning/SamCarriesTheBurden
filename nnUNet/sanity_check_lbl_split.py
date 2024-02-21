@@ -20,7 +20,7 @@ for split in range(n_splits):
     split_lbl_dir = f'Dataset{40 + split:03d}_Light_Seg_Graz_split{split}_mutex_all_left'
     lbl = plt.imread(Path(lbl_dir).joinpath(split_lbl_dir, 'labelsTr', img_name))
     axs[split + 1].imshow(img, 'gray')
-    axs[split + 1].imshow(ma.masked_where(lbl == 0, lbl), alpha=0.5)
+    axs[split + 1].imshow(lbl, alpha=(lbl > 0).astype(float))
 
 plt.tight_layout()
 plt.show()

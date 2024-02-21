@@ -14,7 +14,7 @@ from segment_anything.utils.prompt_utils import PromptExtractor
 from utils.dice_coefficient import multilabel_dice
 from utils.seg_refinement import SAMSegRefiner, SegEnhance
 
-prompts2use1st = ["pos_points"]
+prompts2use1st = ["box"]
 prompts2use2nd = ["pos_points", "neg_points"]
 plot_results = True
 
@@ -25,9 +25,9 @@ cl_model = InputModel(model_id)
 model = UNet.load(cl_model.get_weights(), 'cpu').eval()
 ds = LightSegGrazPedWriDataset('val')
 
-sam_type = ['SAM', 'MedSAM'][0]
+sam_type = ['SAM', 'MedSAM'][1]
 sam_refiner = refiner = SAMSegRefiner(sam_type, 'cpu', [prompts2use1st, prompts2use2nd])
-seg_processor = SegEnhance(refiner, 'highest_probability', 'erosion', 'disk', 1, 'cpu')
+seg_processor = SegEnhance(refiner, 'highest_probability', 'dilation', 'square', 8, 'cpu')
 
 if plot_results:
     dir_name = str.join('_', prompts2use1st)

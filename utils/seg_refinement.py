@@ -85,6 +85,7 @@ class SAMSegRefiner(SegRefiner):
         # check if prompts2use is nested list
         if isinstance(prompts2use[0], list):
             self.prompts2use1st = prompts2use[0]
+            assert len(prompts2use[1]) > 0, "2nd prompt list should not be empty"
             self.prompts2use2nd = prompts2use[1]
             self.self_refine = True
         else:
