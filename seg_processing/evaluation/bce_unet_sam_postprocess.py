@@ -16,7 +16,7 @@ from utils.seg_refinement import SAMSegRefiner, SegEnhance
 
 prompts2use1st = ["box"]
 prompts2use2nd = ["pos_points", "neg_points"]
-plot_results = True
+plot_results = False
 
 model_id = ['2bd2f4be80b9446286416993ba6a87c1',  # initial training
             '0ea1c877eedc446b828048456ffd561a',  # sam pseudo labels
@@ -25,7 +25,7 @@ cl_model = InputModel(model_id)
 model = UNet.load(cl_model.get_weights(), 'cpu').eval()
 ds = LightSegGrazPedWriDataset('val')
 
-sam_type = ['SAM', 'MedSAM'][1]
+sam_type = ['SAM', 'MedSAM'][0]
 sam_refiner = refiner = SAMSegRefiner(sam_type, 'cpu', [prompts2use1st, prompts2use2nd])
 seg_processor = SegEnhance(refiner, 'highest_probability', 'dilation', 'square', 8, 'cpu')
 
