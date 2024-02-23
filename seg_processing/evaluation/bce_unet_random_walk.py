@@ -7,19 +7,21 @@ from clearml import InputModel
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
+from custom_arcitecture.classic_u_net import UNet
 from plot_utils import plot_rnd_walk
 from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
-from custom_arcitecture.classic_u_net import UNet
-from utils import segmentation_preprocessing
 from utils.dice_coefficient import multilabel_dice
-from utils.random_walk import random_walk
+from utils.seg_refinement import RndWalkSegRefiner, SegEnhance
 
-plot_results = True
+plot_results = False
 
 model_id = '0427c1de20c140c5bff7284c7a4ae614'  # initial training
 cl_model = InputModel(model_id)
 model = UNet.load(cl_model.get_weights(), 'cpu').eval()
 ds = LightSegGrazPedWriDataset('val')
+
+rndwlk_refiner = refiner = RndWalkSegRefiner(12, 10)
+seg_processor = SegEnhance(rndwlk_refiner, 'highest_probability', 'dilation', 'disk', 4, 'cpu')
 
 if plot_results:
     plot_save_path = Path(f'/home/ron/Downloads/RndWalk/{model_id}')
@@ -33,24 +35,16 @@ for img, y, file_name in tqdm(ds, unit='img'):
     with torch.inference_mode():
         x = (img - ds.IMG_MEAN) / ds.IMG_STD
         y_hat = model(x.unsqueeze(0)).squeeze(0)
-        y_hat = torch.sigmoid(y_hat) > 0.5
-    unet_mask = y_hat.clone()
+        y_hat = torch.sigmoid(y_hat)
+    y_hat = y_hat.clone()
+    refined_mask = seg_processor.enhance(y_hat, file_name)
 
-    # preprocess mask
-    preproc_mask = unet_mask.clone()
-    preproc_mask = segmentation_preprocessing.remove_all_but_largest_connected_component(preproc_mask, num_iter=250)
-    preproc_mask = segmentation_preprocessing.erode_mask_with_disc_struct(preproc_mask, radius=4)
-
-    img = img.squeeze(0)
-    img = (img * 255).byte()
-    p_hat_rnd_walk = random_walk(img, preproc_mask)
-    refined_mask = p_hat_rnd_walk > 0.5
-
+    unet_mask = y_hat > 0.5
     dsc_unet.append(multilabel_dice(unet_mask.unsqueeze(0), y))
     dsc_rnd_walk.append(multilabel_dice(refined_mask.unsqueeze(0), y))
 
     if plot_results:
-        plot_rnd_walk(img, unet_mask, preproc_mask, p_hat_rnd_walk, plot_save_path / file_name)
+        plot_rnd_walk(img, unet_mask, rndwlk_refiner.last_input_seg, refined_mask, plot_save_path / file_name)
 
 
 dsc_unet = torch.cat(dsc_unet, dim=0)

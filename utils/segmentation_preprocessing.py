@@ -65,7 +65,7 @@ def erode_mask_with_disc_struct(mask: torch.Tensor, radius: int) -> torch.Tensor
     assert mask.ndim == 3, "mask should be 3D tensor of shape (C, H, W)"
     assert radius > 0, "radius should be greater than 0"
 
-    kernel = torch.from_numpy(disk(radius, dtype=int))
+    kernel = torch.from_numpy(disk(radius, dtype=int)).to(mask.device, non_blocking=True)
     eroded_mask = erosion(mask.unsqueeze(0).float(), kernel).squeeze().bool()
 
     return eroded_mask

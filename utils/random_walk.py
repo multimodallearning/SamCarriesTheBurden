@@ -38,6 +38,7 @@ def laplace_matrix(img):
 
 # provided function that calls the sparse LSE solver using multi-grid
 def sparseMultiGrid(A, b):  # A sparse torch matrix, b dense vector
+    device = A.device
     A_ind = A._indices().cpu().data.numpy()
     A_val = A._values().cpu().data.numpy()
     n1, n2 = A.size()
@@ -48,7 +49,7 @@ def sparseMultiGrid(A, b):  # A sparse torch matrix, b dense vector
     x = b_ * 0
     for i in range(x.shape[1]):
         x[:, i] = ml.solve(b_[:, i], tol=1e-3)
-    return torch.from_numpy(x)  # .view(-1,1)
+    return torch.from_numpy(x).to(device)  # .view(-1,1)
 
 
 # provided functions that removes/selects rows and/or columns from sparse matrices
@@ -57,8 +58,8 @@ def sparse_rows(S, slice):
     S_ind = S._indices()
     S_val = S._values()
     # create auxiliary index vector
-    slice_ind = -torch.ones(S.size(0)).long()
-    slice_ind[slice] = torch.arange(slice.size(0))
+    slice_ind = -torch.ones(S.size(0), device=S.device).long()
+    slice_ind[slice] = torch.arange(slice.size(0), device=S.device)
     # def sparse_rows(matrix,indices):
     # redefine row indices of new sparse matrix
     inv_ind = slice_ind[S_ind[0, :]]
@@ -74,8 +75,8 @@ def sparse_cols(S, slice):
     S_ind = S._indices()
     S_val = S._values()
     # create auxiliary index vector
-    slice_ind = -torch.ones(S.size(1)).long()
-    slice_ind[slice] = torch.arange(slice.size(0))
+    slice_ind = -torch.ones(S.size(1), device=S.device).long()
+    slice_ind[slice] = torch.arange(slice.size(0), device=S.device)
     # def sparse_rows(matrix,indices):
     # redefine row indices of new sparse matrix
     inv_ind = slice_ind[S_ind[1, :]]

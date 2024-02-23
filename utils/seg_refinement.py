@@ -1,10 +1,13 @@
 from abc import ABC, abstractmethod
+from pathlib import Path
 
-import torch
+import cv2
 from torch.nn import functional as F
 
 from segment_anything.sam_mask_decoder_head import SAMMaskDecoderHead
 from segment_anything.utils.prompt_utils import PromptExtractor
+from utils import segmentation_preprocessing
+from utils.random_walk import sparse_cols, sparse_rows, sparseMultiGrid
 from utils.segmentation_preprocessing import *
 
 
@@ -111,6 +114,92 @@ class SAMSegRefiner(SegRefiner):
             est_dice[prompt.class_idx] = 2 * mask_score / (1 + mask_score)
 
         return seg, est_dice
+
+
+class RndWalkSegRefiner(SegRefiner):
+    def __init__(self, background_erosion_radius: int, laplace_sigma: float, laplace_lambda: float = 1):
+        self.background_erosion_radius = background_erosion_radius
+        self.laplace_lambda = laplace_lambda
+        self.laplace_sigma = laplace_sigma
+        self.last_input_seg = None  # buffer for plotting
+
+        self.img_path = Path('data/img_only_front_all_left')
+
+    def refine(self, seg: torch.Tensor, file_name: str) -> torch.Tensor:
+        device = seg.device
+        self.last_input_seg = seg
+        img = cv2.imread(str(self.img_path / (file_name + '.png')), cv2.IMREAD_GRAYSCALE)
+        img = cv2.resize(img, (seg.shape[-1], seg.shape[-2]))
+        img = torch.from_numpy(img).to(device)
+
+        # sanity checks
+        assert img.ndim == 2, 'img should be 2D'
+        assert img.dtype == torch.uint8, 'img should be in range [0, 255]'
+        H, W = img.shape
+        assert seg.ndim == 3
+        assert seg.shape[1] == H and seg.shape[2] == W
+
+        # add a background class to the initial segmentation
+        background = torch.logical_not(seg.any(0))
+        background = segmentation_preprocessing.erode_mask_with_disc_struct(background.unsqueeze(0),
+                                                                            radius=self.background_erosion_radius)
+        initial_segmentation = torch.cat([background.unsqueeze(0), seg], dim=0)
+
+        linear_idx = torch.arange(H * W, device=device).view(H, W)
+        idx_mask = initial_segmentation.any(0)
+        seeded = linear_idx[idx_mask]
+        unseeded = linear_idx[~idx_mask]
+
+        L = self.laplace_matrix(img.float())
+        L_u = sparse_rows(sparse_cols(L, unseeded), unseeded)
+        B = sparse_rows(sparse_cols(L, unseeded), seeded)
+
+        u_s = initial_segmentation[:, idx_mask].t()
+
+        b = torch.mm(-B.t(), u_s.float())
+        u_u = sparseMultiGrid(L_u, b)
+
+        # combine prediction (u_u) with the labels for the known pixels (u_s)
+        p_hat = torch.zeros(H * W, u_s.shape[-1], device=device)
+        p_hat[seeded] = u_s.float()
+        p_hat[unseeded] = u_u
+
+        p_hat = p_hat.view(H, W, -1).permute(2, 0, 1)
+        # remove the background class
+        p_hat = p_hat[1:]
+        y_hat = p_hat > 0.5
+
+        return y_hat
+
+    def laplace_matrix(self, img):
+        device = img.device
+        if not img.dtype is torch.float:
+            raise TypeError('an image of type float is expected.')
+        H, W = img.size()
+        # create 1D index vector
+        ind = torch.arange(H * W, device=device).view(H, W)
+        # select left->right neighbours
+        ii = torch.cat((ind[:, 1:].reshape(-1, 1), ind[:, :-1].reshape(-1, 1)), 1)
+        val = torch.exp(-(img.take(ii[:, 0]) - img.take(ii[:, 1])) ** 2 / self.laplace_sigma ** 2)
+
+        # create first part of neigbourhood matrix (similar to setFromTriplets in Eigen)
+        A = torch.sparse.FloatTensor(ii.t(), val, torch.Size([H * W, H * W]))
+        # select up->down neighbours
+        ii = torch.cat((ind[1:, :].reshape(-1, 1), ind[:-1, :].reshape(-1, 1)), 1)
+        val = torch.exp(-(img.take(ii[:, 0]) - img.take(ii[:, 1])) ** 2 / self.laplace_sigma ** 2)
+
+        # create second part of neigbourhood matrix (similar to setFromTriplets in Eigen)
+        A = A + torch.sparse.FloatTensor(ii.t(), val, torch.Size([H * W, H * W]))
+        # make symmetric (add down->up and right->left)
+        A = A + A.t()
+        # compute degree matrix (diagonal sum)
+        D = torch.sparse.sum(A, 0).to_dense()
+        # put D and A together
+        val = .00001 + self.laplace_lambda * D
+        L = torch.sparse.FloatTensor(torch.cat((ind.view(1, -1), ind.view(1, -1)), 0), val,
+                                     torch.Size([H * W, H * W]))
+        L += (A * (-self.laplace_lambda))
+        return L
 
 
 if __name__ == '__main__':
