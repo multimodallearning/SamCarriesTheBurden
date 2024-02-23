@@ -13,37 +13,24 @@ from custom_arcitecture.classic_u_net import UNet
 from unet_training.hyper_params import hp_parser
 from torchmetrics import MeanMetric
 
-hp_parser.add_argument('--data_aug', default=False, action=argparse.BooleanOptionalAction,
-                       help='whether to use data augmentation')
+hp_parser.add_argument('--data_aug', type=float, default=0, help='strength of affine data augmentation.')
 hp_parser.add_argument('--architecture', default='unet', choices=['unet', 'lraspp_on_sam'],
                        help='which architecture to use')
-hp_parser.add_argument('--lr_scheduler', default=False, action=argparse.BooleanOptionalAction,
+hp_parser.add_argument('--lr_scheduler', default=True, action=argparse.BooleanOptionalAction,
                        help='whether to use lr scheduler')
 hp = hp_parser.parse_args()
 
 tags = []
-if hp.data_aug:
+if hp.data_aug > 0:
     tags.append('data_aug')
 if hp.lr_scheduler:
     tags.append('lr_scheduler')
-task = Task.init(project_name='Kids Bone Checker/Bone segmentation',
-                 task_name=f'initial on training data cosine lr scheduler',
+task = Task.init(project_name='Kids Bone Checker/Bone segmentation/hpo',
+                 task_name=f'initial on training data {hp.data_aug} data aug strength; {hp.n_last_channel} dim',
                  auto_connect_frameworks=False, tags=tags)
 # init pytorch
 torch.manual_seed(hp.seed)
 device = torch.device(f'cuda:{hp.gpu_id}' if torch.cuda.is_available() else 'cpu')
-
-# data augmentation
-data_aug_transform = K.container.AugmentationSequential(
-    K.RandomAffine(degrees=25, translate=(0.2, 0.2), scale=(0.9, 1.1), p=0.5),
-    # K.RandomGaussianNoise(std=0.1, p=0.1),
-    # K.RandomGaussianBlur(kernel_size=(9, 9), sigma=(0.5, 1.0), p=0.1),
-    # K.RandomBrightness((0.75, 1.25), p=0.15),
-    # K.RandomContrast((0.75, 1.25), p=0.15),
-    data_keys=["image", "mask"],
-)
-
-norm = K.Normalize(LightSegGrazPedWriDataset.IMG_MEAN, LightSegGrazPedWriDataset.IMG_STD)
 
 # define data loaders
 dl_kwargs = {'num_workers': 0, 'pin_memory': True} if torch.cuda.is_available() else {}
@@ -66,8 +53,8 @@ scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=hp.epoch
 
 loss_collector = MeanMetric().to(device)
 
-fwd_kwargs = {'model': model, 'optimizer': optimizer, 'device': device, 'norm': norm, 'loss_collector': loss_collector,
-              'data_aug': data_aug_transform if hp.data_aug else None,
+fwd_kwargs = {'model': model, 'optimizer': optimizer, 'device': device, 'loss_collector': loss_collector,
+              'data_aug': hp.data_aug,
               'bce_pos_weight': train_dl.dataset.POS_CLASS_WEIGHT.view(-1, 1, 1).expand(-1, 384, 224).to(device)}
 
 for epoch in trange(hp.epochs, desc='training'):

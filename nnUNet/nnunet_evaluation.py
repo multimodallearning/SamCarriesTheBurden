@@ -5,7 +5,7 @@ from nnUNet.prediction_loader import NNUNetPredictionLoader
 from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
 from utils.dice_coefficient import multilabel_dice
 
-ds = LightSegGrazPedWriDataset('val')
+ds = LightSegGrazPedWriDataset('test')
 nnunet_prediction = NNUNetPredictionLoader()
 
 dsc = []

@@ -15,14 +15,13 @@ from utils.dice_coefficient import multilabel_dice
 def forward_bce(mode: str, data_loader: DataLoader, epoch: int,  # have to given each call
                 # can be provided via kwargs dict
                 model: nn.Module, optimizer: Optimizer, device: torch.device, bce_pos_weight: torch.Tensor,
-                norm: Normalize, loss_collector: MeanMetric, data_aug: AugmentationSequential = None) -> (
-torch.Tensor, torch.Tensor):
+                loss_collector: MeanMetric, data_aug: float = 0) -> (torch.Tensor, torch.Tensor):
     # set model mode according to mode
     if mode == 'train':
         model.train()
     elif mode in ['test', 'val']:
         model.eval()
-        data_aug = None  # disable data augmentation during testing
+        data_aug = 0  # disable data augmentation during testing
     else:
         raise ValueError(f'Unknown mode: {mode}')
 
@@ -32,10 +31,13 @@ torch.Tensor, torch.Tensor):
     for x, y, _ in data_loader:
         x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
 
-        if data_aug:  # apply data augmentation
-            x, y = data_aug(x, y)
+        if data_aug > 0:  # apply data augmentation
+            with torch.no_grad():
+                theta = torch.eye(2, 3, device=device).unsqueeze(0) + torch.randn(len(x), 2, 3, device=device) * data_aug
+                affine = F.affine_grid(theta, x.shape, align_corners=False)
+                x = F.grid_sample(x, affine, align_corners=False)
+                y = F.grid_sample(y, affine, align_corners=False, mode='nearest')
 
-        x = norm(x)
         with torch.set_grad_enabled(model.training):  # forward
             y_hat = model(x)
             loss = F.binary_cross_entropy_with_logits(y_hat, y, pos_weight=bce_pos_weight)
