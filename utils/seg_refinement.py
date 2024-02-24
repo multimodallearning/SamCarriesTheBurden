@@ -141,8 +141,9 @@ class RndWalkSegRefiner(SegRefiner):
 
         # add a background class to the initial segmentation
         background = torch.logical_not(seg.any(0))
-        background = segmentation_preprocessing.erode_mask_with_disc_struct(background.unsqueeze(0),
-                                                                            radius=self.background_erosion_radius)
+        if self.background_erosion_radius > 1:
+            background = segmentation_preprocessing.erode_mask_with_disc_struct(background.unsqueeze(0),
+                                                                                radius=self.background_erosion_radius)
         initial_segmentation = torch.cat([background.unsqueeze(0), seg], dim=0)
 
         linear_idx = torch.arange(H * W, device=device).view(H, W)

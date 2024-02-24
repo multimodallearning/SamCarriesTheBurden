@@ -217,6 +217,7 @@ class CombinedSegGrazPedWriDataset(Dataset):
 if __name__ == '__main__':
     from matplotlib import pyplot as plt
     from numpy import ma
+    from torch.utils.data import DataLoader
 
     #ds = SavedSegGrazPedWriDataset('data/seg_masks/self_404bd577195044749a1658ecd76912f7.h5', True)
     ds = LightSegGrazPedWriDataset('train')
@@ -225,7 +226,8 @@ if __name__ == '__main__':
     x, y, filename = ds[idx]
     fig, ax = plt.subplots(1, 2)
     ax[0].imshow(x.squeeze(0), cmap='gray')
-    ax[1].imshow(y.argmax(0))
+    ax[1].imshow(x.squeeze(0), cmap='gray')
+    ax[1].imshow(y.argmax(0), alpha=y.any(0).float() * 0.5)
     for lbl, mask in zip(ds.BONE_LABEL, y):
         plt.figure()
         plt.imshow(x.squeeze(0), cmap='gray')
