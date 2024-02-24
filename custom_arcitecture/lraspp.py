@@ -8,18 +8,18 @@ class BasicBlock(nn.Module):
         self.relu = nn.LeakyReLU(inplace=True)
         self.features = nn.Sequential(
             nn.Conv2d(in_channel, out_channel, 3, padding=1, bias=False, stride=2 if downsample else 1),
-            nn.BatchNorm2d(out_channel),
+            nn.InstanceNorm2d(out_channel, affine=True),
             self.relu,
 
             nn.Conv2d(out_channel, out_channel, 3, padding=1, bias=False),
-            nn.BatchNorm2d(out_channel)
+            nn.InstanceNorm2d(out_channel, affine=True),
         )
         if in_channel == out_channel and not downsample:
             self.identity_projection = nn.Identity()
         else:
             self.identity_projection = nn.Sequential(
                 nn.Conv2d(in_channel, out_channel, 1, bias=False, stride=2 if downsample else 1),
-                nn.BatchNorm2d(out_channel)
+                nn.InstanceNorm2d(out_channel, affine=True)
             )
 
     def forward(self, x):

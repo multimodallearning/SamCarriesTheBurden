@@ -13,4 +13,4 @@ hp_parser.add_argument('--weight_decay', type=float, default=0, help='weight dec
 hp_parser.add_argument('--epochs', type=int, default=500, help='number of epochs for training')
 
 # architecture
-hp_parser.add_argument('--n_last_channel', type=int, default=128, help='number of channels before the last convolution')
+hp_parser.add_argument('--n_last_channel', type=int, default=64, help='number of channels before the last convolution')

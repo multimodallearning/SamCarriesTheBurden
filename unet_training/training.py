@@ -3,30 +3,31 @@ from tempfile import gettempdir
 
 import torch
 from clearml import Task
-from kornia import augmentation as K
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, RandomSampler
+from torchmetrics import MeanMetric
 from tqdm import trange
 
-from unet_training.forward_func import forward_bce
-from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
 from custom_arcitecture.classic_u_net import UNet
+from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
+from unet_training.forward_func import forward_bce
 from unet_training.hyper_params import hp_parser
-from torchmetrics import MeanMetric
 
-hp_parser.add_argument('--data_aug', type=float, default=0, help='strength of affine data augmentation.')
+hp_parser.add_argument('--data_aug', type=float, default=0.03, help='strength of affine data augmentation.')
 hp_parser.add_argument('--architecture', default='unet', choices=['unet', 'lraspp_on_sam'],
                        help='which architecture to use')
 hp_parser.add_argument('--lr_scheduler', default=True, action=argparse.BooleanOptionalAction,
                        help='whether to use lr scheduler')
+hp_parser.add_argument('--data_sample_per_epoch', type=int, default=32,
+                       help='number of samples per epoch. Used for bootstrapping.')
 hp = hp_parser.parse_args()
 
-tags = []
+tags = ['instance_norm', 'bootstrap']
 if hp.data_aug > 0:
     tags.append('data_aug')
 if hp.lr_scheduler:
     tags.append('lr_scheduler')
-task = Task.init(project_name='Kids Bone Checker/Bone segmentation/hpo',
-                 task_name=f'initial on training data {hp.data_aug} data aug strength; {hp.n_last_channel} dim',
+task = Task.init(project_name='Kids Bone Checker/Bone segmentation',
+                 task_name=f'initial on training data',
                  auto_connect_frameworks=False, tags=tags)
 # init pytorch
 torch.manual_seed(hp.seed)
@@ -34,8 +35,10 @@ device = torch.device(f'cuda:{hp.gpu_id}' if torch.cuda.is_available() else 'cpu
 
 # define data loaders
 dl_kwargs = {'num_workers': 0, 'pin_memory': True} if torch.cuda.is_available() else {}
-train_dl = DataLoader(LightSegGrazPedWriDataset('train'), batch_size=hp.batch_size, shuffle=True, drop_last=True,
-                      **dl_kwargs)
+# bootstrap training set
+ds_train = LightSegGrazPedWriDataset('train')
+train_dl = DataLoader(ds_train, batch_size=hp.batch_size, drop_last=False, **dl_kwargs,
+                      sampler=RandomSampler(ds_train, replacement=True, num_samples=hp.data_sample_per_epoch))
 val_dl = DataLoader(LightSegGrazPedWriDataset('val'), batch_size=hp.infer_batch_size, shuffle=False, drop_last=False,
                     **dl_kwargs)
 
