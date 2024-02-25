@@ -28,7 +28,7 @@ if hp.data_aug > 0:
     tags.append('data_aug')
 if hp.lr_scheduler:
     tags.append('lr_scheduler')
-task = Task.init(project_name='Kids Bone Checker/Bone segmentation',
+task = Task.init(project_name='Kids Bone Checker/Bone segmentation/fewer samples',
                  task_name=f'initial on {hp.num_train_samples} training data',
                  auto_connect_frameworks=False, tags=tags)
 # init pytorch
