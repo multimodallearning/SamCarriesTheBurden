@@ -1,18 +1,18 @@
 import json
 import logging
 from pathlib import Path
+from random import randint
 
 import albumentations as A
 import cv2
 import h5py
 import pandas as pd
 import torch
+from torch.nn import functional as F
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
 from utils.cvat_parser import CVATParser
-from torch.nn import functional as F
-from random import randint
 
 
 class LightSegGrazPedWriDataset(Dataset):
@@ -46,9 +46,10 @@ class LightSegGrazPedWriDataset(Dataset):
                                      176.2591, 240.9182, 169.5408, 60.1363, 46.6512, 51.6916, 58.6216,
                                      52.5956, 11.2623, 17.9409])
 
-    def __init__(self, mode: str, rescale_HW: tuple = (384, 224)):
+    def __init__(self, mode: str, number_training_samples: int | str = 'all', rescale_HW: tuple = (384, 224)):
         """
         :param mode: data split mode [training, validation, testing]
+        :param number_training_samples: number of training samples to use. If 'all', use all available samples.
         :param rescale_HW: rescale image and ground truth (should be close to ratio of 1.75 as possible). None will not rescale.
         :param lbl_idx_to_use: list of indices of labels to use. None will use all labels.
         """
@@ -69,6 +70,17 @@ class LightSegGrazPedWriDataset(Dataset):
         projection_mask = self.df_meta['projection'] == 1
         files_with_annotations_mask = self.df_meta.index.isin(self.gt_parser.available_file_names)
         self.available_file_names = self.df_meta[projection_mask & files_with_annotations_mask].index.tolist()
+
+        # get subset of training samples
+        if mode == 'train' and number_training_samples != 'all':
+            # read as series
+            training_files = pd.read_csv('data/successively_training_files_order.csv')['file_stem']
+            assert len(training_files) == len(self.available_file_names), 'files are missing or duplicated'
+            assert number_training_samples <= len(training_files), 'number_training_samples is larger than available files'
+            selected_files = training_files[:number_training_samples]
+            self.available_file_names = selected_files.tolist()
+        elif mode != 'train' and number_training_samples != 'all':
+            logging.warning(f'number_training_samples is not used for mode {mode}')
 
         # init static transformer
         additional_targets = {lbl: 'mask' for lbl in self.BONE_LABEL}
@@ -217,19 +229,18 @@ class CombinedSegGrazPedWriDataset(Dataset):
 if __name__ == '__main__':
     from matplotlib import pyplot as plt
     from numpy import ma
-    from torch.utils.data import DataLoader
 
-    #ds = SavedSegGrazPedWriDataset('data/seg_masks/self_404bd577195044749a1658ecd76912f7.h5', True)
-    ds = LightSegGrazPedWriDataset('train')
+    # ds = SavedSegGrazPedWriDataset('data/seg_masks/self_404bd577195044749a1658ecd76912f7.h5', True)
+    ds = LightSegGrazPedWriDataset('train', number_training_samples=50)
     print(f'Number of classes: {ds.N_CLASSES}')
     idx = randint(0, len(ds) - 1)
-    x, y, filename = ds[idx]
+    x, y, filename = ds[0]
     fig, ax = plt.subplots(1, 2)
     ax[0].imshow(x.squeeze(0), cmap='gray')
     ax[1].imshow(x.squeeze(0), cmap='gray')
     ax[1].imshow(y.argmax(0), alpha=y.any(0).float() * 0.5)
     for lbl, mask in zip(ds.BONE_LABEL, y):
-        plt.figure()
+        plt.figure(filename)
         plt.imshow(x.squeeze(0), cmap='gray')
         plt.imshow(ma.masked_where(mask == 0, mask), alpha=0.5)
         plt.title(lbl)
