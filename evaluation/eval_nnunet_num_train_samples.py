@@ -18,7 +18,7 @@ for num_train in tqdm([1, 5, 10, 15, 20, 25, 30, 35, 43]):
 
         dsc.append(multilabel_dice(y_hat.unsqueeze(0), y.bool().unsqueeze(0)))
         df = pd.concat([df, pd.DataFrame({
-            'method': 'nnunet',
+            'method': 'nnUNet',
             'num_train': num_train,
             'dsc': dsc[-1].nanmean().item(),
             'file_stem': file_stem

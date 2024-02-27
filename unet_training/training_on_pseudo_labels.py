@@ -36,9 +36,10 @@ if not hp.train_from_scratch:
     tags.append('fine_tuning')
 
 if hp.pseudo_label == 'sam':
-    task_name = 'SAM ' + str.join('_', hp.prompt1st) + '_refine_' + str.join('_', hp.prompt2nd)
+    task_name = 'SAM ' + str.join('_', hp.prompt1st) + '_refine_' + str.join('_',
+                                                                             hp.prompt2nd) + f'_num_train_{hp.num_train_samples}'
 else:
-    task_name = hp.pseudo_label
+    task_name = hp.pseudo_label + f'_num_train_{hp.num_train_samples}'
 
 initial_trained_model_id = clearml_model_id.unet_ids[hp.num_train_samples]
 cl_model = InputModel(initial_trained_model_id)

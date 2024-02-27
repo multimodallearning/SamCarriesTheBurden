@@ -11,7 +11,7 @@ import clearml_model_id
 
 # parameters
 architecture = 'UNet'
-refinement = 'SAM'
+refinement = 'MedSAM'
 
 ds = LightSegGrazPedWriDataset('test')
 device = 'cuda:4' if torch.cuda.is_available() else 'cpu'
@@ -54,7 +54,7 @@ for num_train in model_dict.keys():
 
         dsc.append(multilabel_dice(refined_sam_masks.unsqueeze(0).bool(), y))
         df = pd.concat([df, pd.DataFrame({
-            'method': architecture + '_' + refinement if architecture == 'unet' else architecture,
+            'method': architecture + '_' + refinement if architecture == 'UNet' else architecture,
             'num_train': num_train,
             'dsc': dsc[-1].nanmean().item(),
             'file_stem': file_stem

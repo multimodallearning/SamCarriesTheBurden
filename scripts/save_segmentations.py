@@ -11,9 +11,9 @@ from tqdm import tqdm
 from custom_arcitecture.classic_u_net import UNet
 from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
 
-device = "cuda:3" if torch.cuda.is_available() else "cpu"
+device = "cuda:1" if torch.cuda.is_available() else "cpu"
 
-model_id = '2bd2f4be80b9446286416993ba6a87c1'
+model_id = 'bf9286353ce649ef880774f62715c100'
 print(f'Using model: {model_id}')
 cl_model = InputModel(model_id)
 model = UNet.load(cl_model.get_weights(), device).eval().to(device)
