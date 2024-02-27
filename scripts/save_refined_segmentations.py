@@ -12,9 +12,9 @@ from custom_arcitecture.classic_u_net import UNet
 from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
 from utils.seg_refinement import SegEnhance, SAMSegRefiner
 
-device = "cuda:4" if torch.cuda.is_available() else "cpu"
+device = "cuda:2" if torch.cuda.is_available() else "cpu"
 
-model_id = '29f483c5ab6d4f2991f96958d6c68b1a'
+model_id = 'bf9286353ce649ef880774f62715c100'
 cl_model = InputModel(model_id)
 model = UNet.load(cl_model.get_weights(), device).eval().to(device)
 H, W = 384, 224

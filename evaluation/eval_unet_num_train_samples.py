@@ -10,14 +10,14 @@ import pandas as pd
 import clearml_model_id
 
 # parameters
-architecture = 'unet'
-refinement = 'MedSAM'
+architecture = 'UNet'
+refinement = 'SAM'
 
 ds = LightSegGrazPedWriDataset('test')
 device = 'cuda:4' if torch.cuda.is_available() else 'cpu'
 
 model_dict = {
-    'unet': clearml_model_id.unet_ids
+    'UNet': clearml_model_id.unet_ids
 }[architecture]
 
 refinement_func = {
@@ -33,7 +33,7 @@ refinement_func = {
         'erosion', 'disk', 0, device).enhance(mask, file)
 }
 
-df = pd.DataFrame(columns=['architecture', 'refinement', 'num_train', 'dsc', 'file_stem'])
+df = pd.DataFrame(columns=['method', 'num_train', 'dsc', 'file_stem'])
 for num_train in model_dict.keys():
     cl_model = InputModel(model_dict[num_train])
     model = UNet.load(cl_model.get_weights(), device).to(device, non_blocking=True).eval()
@@ -54,8 +54,7 @@ for num_train in model_dict.keys():
 
         dsc.append(multilabel_dice(refined_sam_masks.unsqueeze(0).bool(), y))
         df = pd.concat([df, pd.DataFrame({
-            'architecture': architecture,
-            'refinement': refinement,
+            'method': architecture + '_' + refinement if architecture == 'unet' else architecture,
             'num_train': num_train,
             'dsc': dsc[-1].nanmean().item(),
             'file_stem': file_stem

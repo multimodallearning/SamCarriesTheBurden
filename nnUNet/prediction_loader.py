@@ -4,8 +4,8 @@ from pathlib import Path
 
 
 class NNUNetPredictionLoader:
-    def __init__(self):
-        self.path2predictions = Path('data/bce_nnunet_predictions')
+    def __init__(self, num_train_samples: int = 43):
+        self.path2predictions = Path(f'data/bce_nnunet_predictions/result_{100 + num_train_samples}')
         self.available_files = list(map(lambda f: f.stem, self.path2predictions.glob('*.npz')))
 
     def __len__(self):
