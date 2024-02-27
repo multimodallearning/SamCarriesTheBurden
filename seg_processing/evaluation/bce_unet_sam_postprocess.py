@@ -26,8 +26,8 @@ model = UNet.load(cl_model.get_weights(), 'cpu').eval()
 ds = LightSegGrazPedWriDataset('val')
 
 sam_type = ['SAM', 'MedSAM'][0]
-sam_refiner = refiner = SAMSegRefiner(sam_type, 'cpu', [prompts2use1st, prompts2use2nd])
-seg_processor = SegEnhance(refiner, 'highest_probability', 'dilation', 'square', 8, 'cpu')
+sam_refiner = SAMSegRefiner(sam_type, 'cpu', [prompts2use1st, prompts2use2nd])
+seg_processor = SegEnhance(sam_refiner, 'highest_probability', 'dilation', 'square', 8, 'cpu')
 
 if plot_results:
     dir_name = str.join('_', prompts2use1st)

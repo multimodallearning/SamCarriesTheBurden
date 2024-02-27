@@ -64,4 +64,4 @@ print(study.best_params, study.best_value)
 
 save_path = Path(f"seg_processing/hpo_results/{model_id}")
 save_path.mkdir(exist_ok=True, parents=True)
-dump(study, save_path / "gpo_rnd_wlk_refine.pkl")
+dump(study, save_path / "hpo_rnd_wlk_refine.pkl")
