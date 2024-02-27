@@ -1,26 +1,19 @@
 import argparse
+from pathlib import Path
 from tempfile import gettempdir
 
 import torch
 from clearml import Task, InputModel
-from kornia import augmentation as K
 from torch.utils.data import DataLoader
+from torchmetrics import MeanMetric
 from tqdm import trange
 
-from unet_training.forward_func import forward_bce
-from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset, SavedSegGrazPedWriDataset
 from custom_arcitecture.classic_u_net import UNet
+from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset, SavedSegGrazPedWriDataset
+from unet_training.forward_func import forward_bce
 from unet_training.hyper_params import hp_parser
-from torchmetrics import MeanMetric
-from pathlib import Path
+from evaluation import clearml_model_id
 
-initial_trained_model_id = '2bd2f4be80b9446286416993ba6a87c1'
-cl_model = InputModel(initial_trained_model_id)
-
-hp_parser.add_argument('--data_aug', default=False, action=argparse.BooleanOptionalAction,
-                       help='whether to use data augmentation')
-hp_parser.add_argument('--lr_scheduler', default=True, action=argparse.BooleanOptionalAction,
-                       help='whether to use learning rate scheduler')
 hp_parser.add_argument('--train_from_scratch', default=True, action=argparse.BooleanOptionalAction,
                        help='whether to train from scratch')
 hp_parser.add_argument('--split500', type=bool, default=True,
@@ -30,10 +23,12 @@ hp_parser.add_argument('--prompt1st', type=str, nargs='*', default=None,
                        help='first prompts to use for SAM pseudo label')
 hp_parser.add_argument('--prompt2nd', type=str, nargs='*', default=None,
                        help='second prompts to use for SAM pseudo label')
+hp_parser.add_argument('--num_train_samples', type=int, default=43,
+                       help='number of training samples initial model was trained on.')
 hp = hp_parser.parse_args()
 
 tags = []
-if hp.data_aug:
+if hp.data_aug > 0:
     tags.append('data_aug')
 if hp.lr_scheduler:
     tags.append('lr_scheduler')
@@ -45,21 +40,16 @@ if hp.pseudo_label == 'sam':
 else:
     task_name = hp.pseudo_label
 
-task = Task.init(project_name='Kids Bone Checker/Bone segmentation',
+initial_trained_model_id = clearml_model_id.unet_ids[hp.num_train_samples]
+cl_model = InputModel(initial_trained_model_id)
+
+task = Task.init(project_name='Kids Bone Checker/Bone segmentation/pseudo label training',
                  task_name=task_name, auto_connect_frameworks=False, tags=tags)
 task.set_input_model(cl_model.id)
 
 # init pytorch
 torch.manual_seed(hp.seed)
 device = torch.device(f'cuda:{hp.gpu_id}' if torch.cuda.is_available() else 'cpu')
-
-# data augmentation
-data_aug_transform = K.container.AugmentationSequential(
-    K.RandomAffine(degrees=25, translate=(0.2, 0.2), scale=(0.9, 1.1), p=0.5),
-    data_keys=["image", "mask"],
-)
-
-norm = K.Normalize(LightSegGrazPedWriDataset.IMG_MEAN, LightSegGrazPedWriDataset.IMG_STD)
 
 # define data loaders
 saved_seg_path = Path('data/seg_masks')
@@ -88,8 +78,8 @@ scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=hp.epoch
 
 loss_collector = MeanMetric().to(device)
 
-fwd_kwargs = {'model': model, 'optimizer': optimizer, 'device': device, 'norm': norm, 'loss_collector': loss_collector,
-              'data_aug': data_aug_transform if hp.data_aug else None,
+fwd_kwargs = {'model': model, 'optimizer': optimizer, 'device': device, 'loss_collector': loss_collector,
+              'data_aug': hp.data_aug,
               'bce_pos_weight': LightSegGrazPedWriDataset.POS_CLASS_WEIGHT.view(-1, 1, 1).expand(-1, 384, 224).to(
                   device)}
 

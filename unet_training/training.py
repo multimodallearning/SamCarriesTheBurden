@@ -12,11 +12,8 @@ from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
 from unet_training.forward_func import forward_bce
 from unet_training.hyper_params import hp_parser
 
-hp_parser.add_argument('--data_aug', type=float, default=0.03, help='strength of affine data augmentation.')
 hp_parser.add_argument('--architecture', default='unet', choices=['unet', 'lraspp_on_sam'],
                        help='which architecture to use')
-hp_parser.add_argument('--lr_scheduler', default=True, action=argparse.BooleanOptionalAction,
-                       help='whether to use lr scheduler')
 hp_parser.add_argument('--data_sample_per_epoch', type=int, default=48,
                        help='number of samples per epoch. Used for bootstrapping.')
 hp_parser.add_argument('--num_train_samples', type=int, default=-1,
@@ -29,7 +26,7 @@ if hp.data_aug > 0:
 if hp.lr_scheduler:
     tags.append('lr_scheduler')
 task = Task.init(project_name='Kids Bone Checker/Bone segmentation/fewer samples',
-                 task_name=f'initial on {hp.num_train_samples} training data',
+                 task_name=f'initial on {'all' if hp.num_train_samples == -1 else hp.num_train_samples} training data',
                  auto_connect_frameworks=False, tags=tags)
 # init pytorch
 torch.manual_seed(hp.seed)

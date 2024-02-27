@@ -31,8 +31,10 @@ def forward_bce(mode: str, data_loader: DataLoader, epoch: int,  # have to given
     for x, y, _ in data_loader:
         x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
 
-        if data_aug > 0:  # apply data augmentation
-            with torch.no_grad():
+        with torch.no_grad():
+            # normalize
+            x = (x - data_loader.dataset.IMG_MEAN) / data_loader.dataset.IMG_STD
+            if data_aug > 0:  # apply data augmentation
                 theta = torch.eye(2, 3, device=device).unsqueeze(0) + torch.randn(len(x), 2, 3, device=device) * data_aug
                 affine = F.affine_grid(theta, x.shape, align_corners=False)
                 x = F.grid_sample(x, affine, align_corners=False)

@@ -2,6 +2,7 @@ import seaborn as sns
 import pandas as pd
 from pathlib import Path
 
+sns.set_theme(style='ticks')
 # load data by concatenating the csv files
 csv_path = Path('evaluation/csv_results')
 csv_files = list(csv_path.glob('*.csv'))

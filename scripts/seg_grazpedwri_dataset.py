@@ -230,8 +230,8 @@ if __name__ == '__main__':
     from matplotlib import pyplot as plt
     from numpy import ma
 
-    # ds = SavedSegGrazPedWriDataset('data/seg_masks/self_404bd577195044749a1658ecd76912f7.h5', True)
-    ds = LightSegGrazPedWriDataset('test', number_training_samples=50)
+    ds = SavedSegGrazPedWriDataset('data/seg_masks/29f483c5ab6d4f2991f96958d6c68b1a/sam_box_refine_pos_points_neg_points_500.h5', True)
+    #ds = LightSegGrazPedWriDataset('test', number_training_samples=50)
     print(f'Number of classes: {ds.N_CLASSES}')
     idx = randint(0, len(ds) - 1)
     x, y, filename = ds[0]
@@ -244,4 +244,4 @@ if __name__ == '__main__':
         plt.imshow(x.squeeze(0), cmap='gray')
         plt.imshow(ma.masked_where(mask == 0, mask), alpha=0.5)
         plt.title(lbl)
-        plt.show()
+    plt.show()
