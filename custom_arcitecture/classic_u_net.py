@@ -137,7 +137,7 @@ if __name__ == '__main__':
     checkpoint = 'https://github.com/milesial/Pytorch-UNet/releases/download/v3.0/unet_carvana_scale0.5_epoch2.pth'
     state_dict = torch.hub.load_state_dict_from_url(checkpoint, progress=True, map_location='cpu')
 
-    x = torch.randn(1, 1, 320, 224)
-    y = torch.randint(1, (1, 1, 320, 224), dtype=torch.long)
-    model = UNet(1, 25, n_last_channel=128)
-    summary(model, input_size=(1, 1, 320, 224))
+    x = torch.randn(1, 1, 384, 224)
+    y = torch.randint(1, (1, 1, 384, 224), dtype=torch.long)
+    model = UNet(1, 25, n_last_channel=64)
+    summary(model, input_size=(1, 1, 384, 224))

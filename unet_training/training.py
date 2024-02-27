@@ -1,4 +1,3 @@
-import argparse
 from tempfile import gettempdir
 
 import torch
@@ -8,6 +7,7 @@ from torchmetrics import MeanMetric
 from tqdm import trange
 
 from custom_arcitecture.classic_u_net import UNet
+from custom_arcitecture.lraspp import LRASPPOnSAM
 from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
 from unet_training.forward_func import forward_bce
 from unet_training.hyper_params import hp_parser
@@ -25,6 +25,8 @@ if hp.data_aug > 0:
     tags.append('data_aug')
 if hp.lr_scheduler:
     tags.append('lr_scheduler')
+if hp.architecture == 'lraspp_on_sam':
+    tags.append('SAM')
 task = Task.init(project_name='Kids Bone Checker/Bone segmentation/fewer samples',
                  task_name=f'initial on {'all' if hp.num_train_samples == -1 else hp.num_train_samples} training data',
                  auto_connect_frameworks=False, tags=tags)
@@ -45,7 +47,9 @@ val_dl = DataLoader(LightSegGrazPedWriDataset('val'), batch_size=hp.infer_batch_
 # define model
 n_classes = train_dl.dataset.N_CLASSES
 if hp.architecture == 'unet':
-    model = UNet(1, n_classes)
+    model = UNet(1, n_classes, n_last_channel=hp.n_last_channel)
+elif hp.architecture == 'lraspp_on_sam':
+    model = LRASPPOnSAM(n_classes=n_classes, n_last_channel=hp.n_last_channel)
 else:
     raise NotImplementedError('Unknown architecture')
 
