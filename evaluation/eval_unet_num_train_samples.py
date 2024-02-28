@@ -3,6 +3,7 @@ from clearml import InputModel
 from tqdm import tqdm
 
 from custom_arcitecture.classic_u_net import UNet
+from custom_arcitecture.lraspp import LRASPPOnSAM
 from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
 from utils.dice_coefficient import multilabel_dice
 from utils.seg_refinement import SAMSegRefiner, SegEnhance, RndWalkSegRefiner
@@ -10,15 +11,21 @@ import pandas as pd
 import clearml_model_id
 
 # parameters
-architecture = 'UNet'
-refinement = 'MedSAM'
+architecture = 'SAM_LRASPP'
+refinement = 'raw'
 
 ds = LightSegGrazPedWriDataset('test')
 device = 'cuda:4' if torch.cuda.is_available() else 'cpu'
 
 model_dict = {
-    'UNet': clearml_model_id.unet_ids
+    'UNet': clearml_model_id.unet_ids,
+    'UNet_pseudo_lbl': clearml_model_id.raw_pseudo_lbl_unet_ids,
+    'UNet_pseudo_lbl_sam': clearml_model_id.sam_pseudo_lbl_unet_ids,
+    'SAM_LRASPP': clearml_model_id.sam_lraspp
 }[architecture]
+
+if architecture != 'UNet' and refinement != 'raw':
+    raise ValueError('Refinement should only used for initial UNet.')
 
 refinement_func = {
     'raw': lambda mask, _: (mask > 0.5, None),
@@ -36,7 +43,12 @@ refinement_func = {
 df = pd.DataFrame(columns=['method', 'num_train', 'dsc', 'file_stem'])
 for num_train in model_dict.keys():
     cl_model = InputModel(model_dict[num_train])
-    model = UNet.load(cl_model.get_weights(), device).to(device, non_blocking=True).eval()
+    if architecture.startswith('UNet'):
+        model = UNet.load(cl_model.get_weights(), device).to(device).eval()
+    elif architecture.startswith('SAM'):
+        model = LRASPPOnSAM.load(cl_model.get_weights(), device).to(device).eval()
+    else:
+        raise ValueError('Unknown architecture.')
 
     dsc = []
     for img, y, file_stem in tqdm(ds, unit='img'):

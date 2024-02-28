@@ -113,6 +113,8 @@ class LRASPPOnSAM(LoadableModel):
         # freeze the sam_img_encoder
         self.sam_img_encoder.eval()
 
+        return self
+
 
 if __name__ == '__main__':
     from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
