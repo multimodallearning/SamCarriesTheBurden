@@ -76,7 +76,8 @@ class LightSegGrazPedWriDataset(Dataset):
             # read as series
             training_files = pd.read_csv('data/successively_training_files_order.csv')['file_stem']
             assert len(training_files) == len(self.available_file_names), 'files are missing or duplicated'
-            assert number_training_samples <= len(training_files), 'number_training_samples is larger than available files'
+            assert number_training_samples <= len(
+                training_files), 'number_training_samples is larger than available files'
             selected_files = training_files[:number_training_samples]
             self.available_file_names = selected_files.tolist()
         elif mode != 'train' and number_training_samples != 'all':
@@ -226,12 +227,60 @@ class CombinedSegGrazPedWriDataset(Dataset):
         return {'gt': (x1, y1, file_name1), 'pseudo_lbl': (x2, y2, file_name2)}
 
 
+class MeanTeacherSegGrazPedWriDataset(Dataset):
+    # calculated over training split
+    IMG_MEAN = LightSegGrazPedWriDataset.IMG_MEAN
+    IMG_STD = LightSegGrazPedWriDataset.IMG_STD
+    # copy all attributes from LightSegGrazPedWriDataset
+    BONE_LABEL = LightSegGrazPedWriDataset.BONE_LABEL
+    BONE_LABEL_MAPPING = {k: v for k, v in zip(BONE_LABEL, range(len(BONE_LABEL)))}
+    N_CLASSES = len(BONE_LABEL)
+
+    def __init__(self, use_500_split: bool, number_training_samples: int | str = 'all', rescale_HW: tuple = (384, 224)):
+        """
+        Dataset that combines dataset with and dataset without ground truth.
+        """
+        super().__init__()
+        self.img_size_cv2 = rescale_HW[::-1]
+        self.img_path = Path('data/img_only_front_all_left')
+
+        self.ds_with_gt = LightSegGrazPedWriDataset('train', number_training_samples, rescale_HW)
+        if use_500_split:
+            self.unlabeled_files_names = pd.read_csv('data/500unlabeled_sample.csv')['filestem'].tolist()
+        else:
+            self.unlabeled_files_names = self.img_path.rglob('*.png')
+            self.unlabeled_files_names = [f.stem for f in self.unlabeled_files_names]
+            self.unlabeled_files_names = list(set(self.unlabeled_files_names) - set(self.ds_with_gt.available_file_names))
+            assert len(
+                set(self.unlabeled_files_names) & set(self.ds_with_gt.available_file_names)) == 0, 'Files are duplicated'
+
+        self.available_file_names = self.ds_with_gt.available_file_names + self.unlabeled_files_names
+
+    def __len__(self):
+        return len(self.available_file_names)
+
+    def __getitem__(self, index):
+        file_name = self.available_file_names[index]
+
+        if file_name in self.ds_with_gt.available_file_names:  # gt available
+            return self.ds_with_gt[self.ds_with_gt.available_file_names.index(file_name)]
+        else:  # no gt available
+            # numpy image to tensor and add channel dimension
+            img = cv2.imread(str(self.img_path.joinpath(file_name).with_suffix('.png')), cv2.IMREAD_GRAYSCALE)
+            img = cv2.resize(img, self.img_size_cv2, interpolation=cv2.INTER_LINEAR)
+            x = torch.from_numpy(img).unsqueeze(0).float()
+            x /= 255
+
+            return x, None, file_name
+
+
 if __name__ == '__main__':
     from matplotlib import pyplot as plt
     from numpy import ma
 
-    ds = SavedSegGrazPedWriDataset('data/seg_masks/29f483c5ab6d4f2991f96958d6c68b1a/sam_box_refine_pos_points_neg_points_500.h5', True)
-    #ds = LightSegGrazPedWriDataset('test', number_training_samples=50)
+    ds = SavedSegGrazPedWriDataset(
+        'data/seg_masks/29f483c5ab6d4f2991f96958d6c68b1a/sam_box_refine_pos_points_neg_points_500.h5', True)
+    # ds = LightSegGrazPedWriDataset('test', number_training_samples=50)
     print(f'Number of classes: {ds.N_CLASSES}')
     idx = randint(0, len(ds) - 1)
     x, y, filename = ds[0]

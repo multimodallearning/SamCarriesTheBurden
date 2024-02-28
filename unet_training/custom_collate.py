@@ -11,18 +11,27 @@ def stack_two_ds_collate(batch):
 
     return x, y, files_name
 
+def create_mask_for_unlabeled_data(batch):
+    x = torch.stack([b[0] for b in batch], dim=0)
+    filenames = [b[2] for b in batch]
+
+    gt_available_mask = torch.tensor([b[1] is not None for b in batch], dtype=torch.bool)
+    if any(gt_available_mask):
+        y = torch.stack([b[1] for b in batch if b[1] is not None], dim=0)
+    else:
+        y = None
+    return x, y, filenames, gt_available_mask
+
 
 if __name__ == '__main__':
     from scripts.seg_grazpedwri_dataset import *
     from torch.utils.data import DataLoader
     from matplotlib import pyplot as plt
 
-    ds1 = LightSegGrazPedWriDataset('train')
-    ds2 = SavedSegGrazPedWriDataset('data/seg_masks/self_404bd577195044749a1658ecd76912f7.h5')
-    ds = CombinedSegGrazPedWriDataset(ds1, ds2)
+    ds = MeanTeacherSegGrazPedWriDataset(use_500_split=True)
 
-    dl = DataLoader(ds, batch_size=4, shuffle=True, drop_last=True, collate_fn=stack_two_ds_collate)
-    x, y, files_name = next(iter(dl))
+    dl = DataLoader(ds, batch_size=4, shuffle=True, drop_last=True, collate_fn=create_mask_for_unlabeled_data)
+    x, y, files_name, gt_available_mask = next(iter(dl))
     for img, seg, file in zip(x, y, files_name):
         fig, axs = plt.subplots(1, 2)
         axs[0].set_title(file)
