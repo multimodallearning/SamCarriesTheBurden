@@ -11,7 +11,7 @@ import pandas as pd
 import clearml_model_id
 
 # parameters
-architecture = 'SAM_LRASPP'
+architecture = 'UNet_mean_teacher'
 refinement = 'raw'
 
 ds = LightSegGrazPedWriDataset('test')
@@ -19,9 +19,10 @@ device = 'cuda:4' if torch.cuda.is_available() else 'cpu'
 
 model_dict = {
     'UNet': clearml_model_id.unet_ids,
-    'UNet_pseudo_lbl': clearml_model_id.raw_pseudo_lbl_unet_ids,
+    'UNet_pseudo_lbl_raw': clearml_model_id.raw_pseudo_lbl_unet_ids,
     'UNet_pseudo_lbl_sam': clearml_model_id.sam_pseudo_lbl_unet_ids,
-    'SAM_LRASPP': clearml_model_id.sam_lraspp
+    'SAM_LRASPP': clearml_model_id.sam_lraspp,
+    'UNet_mean_teacher': clearml_model_id.unet_mean_teacher_ids
 }[architecture]
 
 if architecture != 'UNet' and refinement != 'raw':

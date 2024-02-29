@@ -31,7 +31,7 @@ student_model_id = clearml_model_id.unet_ids[hp.num_train_samples]
 cl_model = InputModel(student_model_id)
 
 task = Task.init(project_name='Kids Bone Checker/Bone segmentation/mean teacher',
-                 task_name=f'Mean teacher {hp.alpha}', auto_connect_frameworks=False, tags=tags)
+                 task_name=f'Mean teacher on {hp.num_train_samples} training data', auto_connect_frameworks=False, tags=tags)
 task.set_input_model(cl_model.id)
 
 # init pytorch

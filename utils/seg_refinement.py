@@ -170,7 +170,7 @@ class RndWalkSegRefiner(SegRefiner):
         p_hat = p_hat[1:]
         y_hat = p_hat > 0.5
 
-        return y_hat
+        return y_hat, None  # dummy to match the signature of SAMSegRefiner
 
     def laplace_matrix(self, img):
         device = img.device

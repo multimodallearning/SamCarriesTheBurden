@@ -18,7 +18,7 @@ raw_pseudo_lbl_unet_ids = {  # num_training_samples: model_id
     20: 'da1dd843b0254eaf846050900994f480',
     25: 'c896158541e848e882ff25d22e859cdd',
     30: 'dfa2fd6448ef4b4ebc903e28576cb8c8',
-    #35: '',
+    35: '1dc80448f1264941bc801cfd1bdfa610',
     43: '2bc2147a5bc744c694e3ab98277ba168'
 }
 
@@ -44,4 +44,8 @@ sam_lraspp = {  # num_training_samples: model_id
     30: 'e1b0e28d498c41b7b5a02e7ef3b18e12',
     35: '153cfe9be80246fbb3d03cfacdb84bd5',
     43: '949d370f12aa4f4cb7247d27e6bfc7c6'
+}
+
+unet_mean_teacher_ids = {  # num_training_samples: model_id
+    43: 'a7364b31977e42a2a15ac511cfed358f',
 }
