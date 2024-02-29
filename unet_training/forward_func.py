@@ -173,19 +173,22 @@ def forward_mean_teacher_bce(mode: str, data_loader: DataLoader, epoch: int,  # 
                     ema_param.data.mul_(alpha).add_(param.data, alpha=1 - alpha)
 
     # log metrics scalars
-    dsc_s = torch.cat(dsc_s, dim=0)
-    dsc_t = torch.cat(dsc_t, dim=0)
     log = Logger.current_logger()
     log.report_scalar('Consistency', mode, iteration=epoch, value=consistency_loss_collector.compute().item())
     log.report_scalar('BCE ' + mode, 'teacher', iteration=epoch, value=teacher_loss_collector.compute().item())
     log.report_scalar('BCE ' + mode, 'student', iteration=epoch, value=student_loss_collector.compute().item())
-    log.report_scalar('Dice ' + mode, 'teacher', iteration=epoch, value=dsc_t.nanmean().item())
-    log.report_scalar('Dice ' + mode, 'student', iteration=epoch, value=dsc_s.nanmean().item())
 
-    log.report_histogram('Dice ' + mode, 'teacher', iteration=epoch,
-                         values=dsc_t.nanmean(0).cpu().numpy(),
-                         xlabels=data_loader.dataset.BONE_LABEL, xaxis='class', yaxis='dice')
+    # only log if there are labeled samples → could be dropped due to drop_last=True
+    if len(dsc_s) > 0 and len(dsc_t) > 0:
+        dsc_s = torch.cat(dsc_s, dim=0)
+        dsc_t = torch.cat(dsc_t, dim=0)
+        log.report_scalar('Dice ' + mode, 'teacher', iteration=epoch, value=dsc_t.nanmean().item())
+        log.report_scalar('Dice ' + mode, 'student', iteration=epoch, value=dsc_s.nanmean().item())
 
-    log.report_histogram('Dice ' + mode, 'student', iteration=epoch,
-                         values=dsc_s.nanmean(0).cpu().numpy(),
-                         xlabels=data_loader.dataset.BONE_LABEL, xaxis='class', yaxis='dice')
+        log.report_histogram('Dice ' + mode, 'teacher', iteration=epoch,
+                             values=dsc_t.nanmean(0).cpu().numpy(),
+                             xlabels=data_loader.dataset.BONE_LABEL, xaxis='class', yaxis='dice')
+
+        log.report_histogram('Dice ' + mode, 'student', iteration=epoch,
+                             values=dsc_s.nanmean(0).cpu().numpy(),
+                             xlabels=data_loader.dataset.BONE_LABEL, xaxis='class', yaxis='dice')
