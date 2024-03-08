@@ -10,8 +10,9 @@ from tqdm import tqdm
 
 from custom_arcitecture.classic_u_net import UNet
 from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
+from utils.cvat_parser import CVATParser
 
-device = "cuda:2" if torch.cuda.is_available() else "cpu"
+device = "cuda:4" if torch.cuda.is_available() else "cpu"
 
 model_id = 'bf9286353ce649ef880774f62715c100'
 print(f'Using model: {model_id}')
@@ -19,14 +20,20 @@ cl_model = InputModel(model_id)
 model = UNet.load(cl_model.get_weights(), device).eval().to(device)
 H, W = 384, 224
 
-n_files = 500
+n_files = 'all'  # 500
 img_dir = Path('data/img_only_front_all_left')
-available_files = pd.read_csv(f'data/{n_files}unlabeled_sample.csv', index_col='filestem').index.tolist()
+if n_files == 500:
+    available_files = pd.read_csv(f'data/{n_files}unlabeled_sample.csv', index_col='filestem').index.tolist()
+else:
+    available_files = {f.stem for f in img_dir.glob('*.png')}
+    parser = CVATParser(list(Path('data/cvat_annotation_xml').glob(f'annotations_*.xml')), True, False, True)
+    available_files -= set(parser.available_file_names)
+    available_files = list(available_files)
 
 # create h5 file
 h5py_path = Path(f'data/seg_masks/{model_id}')
 h5py_path.mkdir(parents=True, exist_ok=True)
-h5py_path = h5py_path / f'raw_segmentations_{n_files}.h5'
+h5py_path = h5py_path / f'raw_segmentations_{len(available_files)}.h5'
 h5py_file = h5py.File(h5py_path, 'w')
 # store labels and their index
 h5py_file.attrs['labels'] = json.dumps(LightSegGrazPedWriDataset.BONE_LABEL_MAPPING)

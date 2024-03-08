@@ -7,7 +7,7 @@ from utils.dice_coefficient import multilabel_dice
 import pandas as pd
 
 ds = LightSegGrazPedWriDataset('test')
-df = pd.DataFrame(columns=['method', 'num_train', 'dsc', 'file_stem'])
+df = pd.DataFrame()
 for num_train in tqdm([1, 5, 10, 15, 20, 25, 30, 35, 43]):
     nnunet_prediction = NNUNetPredictionLoader(num_train_samples=num_train)
 
@@ -17,14 +17,15 @@ for num_train in tqdm([1, 5, 10, 15, 20, 25, 30, 35, 43]):
         y_hat = p_hat > 0.5
 
         dsc.append(multilabel_dice(y_hat.unsqueeze(0), y.bool().unsqueeze(0)))
-        df = pd.concat([df, pd.DataFrame({
-            'method': 'nnUNet',
-            'num_train': num_train,
-            'dsc': dsc[-1].nanmean().item(),
-            'file_stem': file_stem
-        }, index=[len(df)])], ignore_index=True)
+        value_dict = {
+            'Method': 'nnUNet',
+            'Number training samples': num_train,
+            'DSC mean': dsc[-1].nanmean().item(),
+            'File stem': file_stem
+        }
+        value_dict.update({'DSC ' + lbl: dsc[-1][0][i].item() for lbl, i in ds.BONE_LABEL_MAPPING.items()})
+        df = pd.concat([df, pd.DataFrame(value_dict, index=[len(df)])], ignore_index=True)
 
     dsc = torch.cat(dsc)
     print(f'nnUNet {num_train} samples: {dsc.nanmean().item()}')
-
 df.to_csv('evaluation/csv_results/nnunet.csv', index=False)

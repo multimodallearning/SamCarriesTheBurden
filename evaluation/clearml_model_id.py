@@ -47,5 +47,13 @@ sam_lraspp = {  # num_training_samples: model_id
 }
 
 unet_mean_teacher_ids = {  # num_training_samples: model_id
+    1: '8fe49ef3d53d455c90e28f6b34d0da2c',
+    5: 'bae55716644640a5b0292007debf5cd2',
+    10: '5e4736967f68411287d5d33fb5429e65',
+    15: '308c229e394f48ab9cb4e577184d2a49',
+    20: 'b0c2a667530a435ebcef51ad851be9ac',
+    25: 'b131347b733847d789cc077d2cb9221e',
+    30: 'b626efb7d04b4170ad639001e901b228',
+    35: 'ac23eae5dce94b1ab22f9c8aa4208321',
     43: 'a7364b31977e42a2a15ac511cfed358f',
 }

@@ -16,7 +16,7 @@ from evaluation import clearml_model_id
 
 hp_parser.add_argument('--train_from_scratch', default=True, action=argparse.BooleanOptionalAction,
                        help='whether to train from scratch')
-hp_parser.add_argument('--split500', type=bool, default=True,
+hp_parser.add_argument('--split500', default=True, action=argparse.BooleanOptionalAction,
                        help='whether to use the predefined 500 split instead of all available data')
 hp_parser.add_argument('--pseudo_label', choices=['raw', 'sam', 'nnunet'], help='pseudo label method')
 hp_parser.add_argument('--prompt1st', type=str, nargs='*', default=None,
@@ -58,10 +58,10 @@ if hp.pseudo_label == 'nnunet':
     saved_seg_path = saved_seg_path.joinpath('SegGraz_nnunet_predictions.h5')
 elif hp.pseudo_label == 'raw':
     saved_seg_path /= initial_trained_model_id
-    saved_seg_path /= 'raw_segmentations_500.h5'
+    saved_seg_path /= 'raw_segmentations_all.h5'
 elif hp.pseudo_label == 'sam':
     saved_seg_path /= initial_trained_model_id
-    saved_seg_path /= f'sam_{str.join('_', hp.prompt1st) + '_refine_' + str.join('_', hp.prompt2nd)}_500.h5'
+    saved_seg_path /= f'sam_{str.join('_', hp.prompt1st) + '_refine_' + str.join('_', hp.prompt2nd)}_all.h5'
 dl_kwargs = {'num_workers': 4, 'pin_memory': True} if torch.cuda.is_available() else {}
 train_dl = DataLoader(SavedSegGrazPedWriDataset(str(saved_seg_path), use_500_split=hp.split500),
                       batch_size=hp.batch_size, shuffle=True, drop_last=True, **dl_kwargs)

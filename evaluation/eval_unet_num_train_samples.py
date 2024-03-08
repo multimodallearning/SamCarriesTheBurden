@@ -11,8 +11,9 @@ import pandas as pd
 import clearml_model_id
 
 # parameters
-architecture = 'UNet_mean_teacher'
-refinement = 'raw'
+architecture = 'UNet'
+refinement = 'RndWalk'
+print(f'Architecture: {architecture}, refinement: {refinement}')
 
 ds = LightSegGrazPedWriDataset('test')
 device = 'cuda:4' if torch.cuda.is_available() else 'cpu'
@@ -41,7 +42,7 @@ refinement_func = {
         'erosion', 'disk', 0, device).enhance(mask, file)
 }
 
-df = pd.DataFrame(columns=['method', 'num_train', 'dsc', 'file_stem'])
+df = pd.DataFrame()
 for num_train in model_dict.keys():
     cl_model = InputModel(model_dict[num_train])
     if architecture.startswith('UNet'):
@@ -66,12 +67,14 @@ for num_train in model_dict.keys():
         refined_sam_masks, _ = refinement_func[refinement](y_hat, file_stem)
 
         dsc.append(multilabel_dice(refined_sam_masks.unsqueeze(0).bool(), y))
-        df = pd.concat([df, pd.DataFrame({
-            'method': architecture + '_' + refinement if architecture == 'UNet' else architecture,
-            'num_train': num_train,
-            'dsc': dsc[-1].nanmean().item(),
-            'file_stem': file_stem
-        }, index=[len(df)])], ignore_index=True)
+        value_dict = {
+            'Method': architecture + '_' + refinement if architecture == 'UNet' else architecture,
+            'Number training samples': num_train,
+            'DSC mean': dsc[-1].nanmean().item(),
+            'File stem': file_stem
+        }
+        value_dict.update({'DSC ' + lbl: dsc[-1][0][i].item() for lbl, i in ds.BONE_LABEL_MAPPING.items()})
+        df = pd.concat([df, pd.DataFrame(value_dict, index=[len(df)])], ignore_index=True)
 
     dsc = torch.cat(dsc)
     print(f'{architecture} {refinement} {num_train} samples: {dsc.nanmean().item()}')

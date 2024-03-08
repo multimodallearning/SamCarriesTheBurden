@@ -18,12 +18,13 @@ prompts2use1st = ["box"]
 prompts2use2nd = ["pos_points", "neg_points"]
 plot_results = False
 
-model_id = ['2bd2f4be80b9446286416993ba6a87c1',  # initial training
+model_id = ['bf9286353ce649ef880774f62715c100',  # initial training
             '0ea1c877eedc446b828048456ffd561a',  # sam pseudo labels
+            'daae93c8731f4914b0c88278076dc192',  # unet trained with sam pseudo labels
             ][0]
 cl_model = InputModel(model_id)
 model = UNet.load(cl_model.get_weights(), 'cpu').eval()
-ds = LightSegGrazPedWriDataset('val')
+ds = LightSegGrazPedWriDataset('test')
 
 sam_type = ['SAM', 'MedSAM'][0]
 sam_refiner = SAMSegRefiner(sam_type, 'cpu', [prompts2use1st, prompts2use2nd])
@@ -41,6 +42,8 @@ dsc_unet = []
 dsc_sam = []
 dsc_sam_est = []
 for img, y, file_name in tqdm(ds, unit='img'):
+    if file_name == '0172_0304693626_01_WRI-R1_F014':
+        continue
     y = y.unsqueeze(0).bool()
     # forward
     with torch.inference_mode():
