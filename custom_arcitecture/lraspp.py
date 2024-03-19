@@ -10,7 +10,16 @@ from segment_anything.utils.transforms import ResizeLongestSide
 
 
 class BasicBlock(nn.Module):
+    """
+    A basic block of the ResNet architecture.
+    """
     def __init__(self, in_channel: int, out_channel: int, downsample: bool = False):
+        """
+        Args:
+            in_channel:
+            out_channel:
+            downsample: weather to halve the spatial dimensions of the input
+        """
         super(BasicBlock, self).__init__()
         self.relu = nn.LeakyReLU(inplace=True)
         self.features = nn.Sequential(
@@ -70,6 +79,15 @@ class LRASPPOnSAM(LoadableModel):
     @store_config_args
     def __init__(self, n_classes: int, n_last_channel: int = 64, model_type: str = "vit_h",
                  sam_checkpoint: str = "data/sam_vit_h_4b8939.pth"):
+        """
+        LRASPPO head on fixed SAM image encoder. Two residual blocks are added to the SAM image encoder to further
+        abstract features for the high classifier. The latent space of the SAM image encoder is used for the low classifier.
+        Args:
+            n_classes:
+            n_last_channel: number of channels of the latent space (inter_channels)
+            model_type: whether to use SAM or MedSAM
+            sam_checkpoint: path to the checkpoint of the SAM model
+        """
         super().__init__()
         self.sam_img_encoder = sam_model_registry[model_type](checkpoint=sam_checkpoint).image_encoder
         self.sam_img_encoder.pos_embed = None

@@ -1,3 +1,5 @@
+# messy script to plot the results of the evaluation
+
 import numpy as np
 import seaborn as sns
 import pandas as pd

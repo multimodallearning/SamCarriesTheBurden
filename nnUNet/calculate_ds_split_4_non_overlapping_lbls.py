@@ -1,3 +1,5 @@
+# solve independent set problem to find non-overlapping label combinations with minimal number of splits
+
 from itertools import combinations
 
 import networkx as nx

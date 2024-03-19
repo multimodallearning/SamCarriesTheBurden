@@ -1,14 +1,16 @@
+# Evaluates the UNet with different number of training samples.
+
+import pandas as pd
 import torch
 from clearml import InputModel
 from tqdm import tqdm
 
+import clearml_model_id
 from custom_arcitecture.classic_u_net import UNet
 from custom_arcitecture.lraspp import LRASPPOnSAM
 from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
 from utils.dice_coefficient import multilabel_dice
 from utils.seg_refinement import SAMSegRefiner, SegEnhance, RndWalkSegRefiner
-import pandas as pd
-import clearml_model_id
 
 # parameters
 architecture = 'UNet'
@@ -32,7 +34,8 @@ if architecture != 'UNet' and refinement != 'raw':
 refinement_func = {
     'raw': lambda mask, _: (mask > 0.5, None),
     'SAM': lambda mask, file: SegEnhance(
-        SAMSegRefiner('SAM', device, [['box'], ['pos_points', 'neg_points']]), 'highest_probability', 'dilation', 'square',
+        SAMSegRefiner('SAM', device, [['box'], ['pos_points', 'neg_points']]), 'highest_probability', 'dilation',
+        'square',
         8, device).enhance(mask, file),
     'MedSAM': lambda mask, file: SegEnhance(
         SAMSegRefiner('MedSAM', device, ['box']), 'highest_probability', 'dilation', 'square',

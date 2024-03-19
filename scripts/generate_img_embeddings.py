@@ -1,3 +1,5 @@
+# script to offline generate SAM's image embeddings
+
 from pathlib import Path
 
 import cv2

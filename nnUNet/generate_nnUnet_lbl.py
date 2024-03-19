@@ -1,3 +1,6 @@
+# script to generate nnUNet dataset for Graz PedWri dataset based on the disjuncted splits of the labels.
+# usable with the default nnUNet training pipeline.
+
 import json
 from pathlib import Path
 

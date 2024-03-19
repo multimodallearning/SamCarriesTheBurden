@@ -1,3 +1,5 @@
+# Description: This file contains the model ids for the trained models on ClearML.
+
 unet_ids = {  # num_training_samples: model_id
     1: '1ab541353f2d4c14b8fc21ea97a09500',
     5: 'f9da83e367494f13911a73099b9713f6',

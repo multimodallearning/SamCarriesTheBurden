@@ -1,3 +1,5 @@
+# pytorch dataset for Graz PedWri dataset
+
 import json
 import logging
 from pathlib import Path

@@ -1,5 +1,8 @@
+# Plot ground truth and prediction of specific file also save the DSC in a text file.
+
+from pathlib import Path
+
 import numpy as np
-import pandas as pd
 import torch
 from clearml import InputModel
 from matplotlib import pyplot as plt
@@ -9,7 +12,6 @@ from custom_arcitecture.classic_u_net import UNet
 from custom_arcitecture.lraspp import LRASPPOnSAM
 from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
 from utils.dice_coefficient import multilabel_dice
-from pathlib import Path
 
 # parameters
 architecture = 'UNet_mean_teacher'

@@ -1,3 +1,5 @@
+# script to plot the saved nnUNet predictions
+
 from matplotlib import pyplot as plt
 
 from nnUNet.prediction_loader import NNUNetPredictionLoader

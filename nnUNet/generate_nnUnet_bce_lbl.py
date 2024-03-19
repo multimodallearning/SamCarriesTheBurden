@@ -1,3 +1,6 @@
+# script to generate nnUNet dataset for Graz PedWri dataset with BCE labels.
+# Includes the conversion of binary labels to decimal labels.
+
 import json
 from pathlib import Path
 

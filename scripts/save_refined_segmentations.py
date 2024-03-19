@@ -1,3 +1,5 @@
+# script to offline generate segmentation masks with SAM's refinement
+
 import json
 from pathlib import Path
 

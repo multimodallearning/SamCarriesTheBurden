@@ -1,3 +1,5 @@
+# script to copy and process (flip to left if necessary) images from the GrazPedWri dataset
+
 from pathlib import Path
 
 import cv2

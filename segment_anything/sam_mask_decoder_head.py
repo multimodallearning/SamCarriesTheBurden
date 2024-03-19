@@ -11,6 +11,14 @@ from copy import deepcopy
 
 class SAMMaskDecoderHead:
     def __init__(self, sam_checkpoint: str | Path, model_type: str, device: str, img_embedding_h5: str | Path):
+        """
+        SAM prediction using the offline generated image embeddings and thus skipping the image encoder part.
+        Args:
+            sam_checkpoint: path to model weights of whole SAM model
+            model_type: SAM model type
+            device: device to run the model on
+            img_embedding_h5: corresponding image embeddings h5 file for SAM model
+        """
         sam_checkpoint = Path(sam_checkpoint)
         img_embedding_h5 = Path(img_embedding_h5) if isinstance(img_embedding_h5, str) else img_embedding_h5
         self.device = torch.device(device)
@@ -24,7 +32,7 @@ class SAMMaskDecoderHead:
         self.prompt_encoder = sam.prompt_encoder.to(device=self.device, non_blocking=True)
         self.mask_decoder = sam.mask_decoder.to(device=self.device, non_blocking=True)
         self.mask_threshold = sam.mask_threshold
-        del sam
+        del sam  # delete image encoder
 
     @torch.inference_mode()
     def predict_mask(self, img_name: str, given_prompt: Prompt, prompt2use: str | List[str],

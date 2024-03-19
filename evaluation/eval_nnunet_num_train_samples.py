@@ -1,3 +1,5 @@
+# Evaluates the nnUNet model with different number of training samples
+
 import torch
 from tqdm import tqdm
 

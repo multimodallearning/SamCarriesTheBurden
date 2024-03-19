@@ -1,3 +1,5 @@
+# helper class to load nnUNet predictions
+
 import numpy as np
 import torch
 from pathlib import Path

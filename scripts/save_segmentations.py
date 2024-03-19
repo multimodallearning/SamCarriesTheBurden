@@ -1,3 +1,5 @@
+# script to offline generate segmentation masks
+
 import json
 from pathlib import Path
 

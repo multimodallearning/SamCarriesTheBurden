@@ -1,8 +1,10 @@
-from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
+# Define the subset of files to be used for successively training the model.
+
+import pandas as pd
 import torch
 from matplotlib import pyplot as plt
-import pandas as pd
-import random
+
+from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
 
 ds = LightSegGrazPedWriDataset('train')
 files = ds.available_file_names
@@ -22,6 +24,7 @@ for idx in torch.where(all_classes_present)[0]:
 selected_index = 13  # manually selected index after visual inspection
 print('selected file:', files[selected_index])
 
+# define the order of files for successively training
 files_ordered_for_successively_training = files[:]
 del files_ordered_for_successively_training[selected_index]
 files_ordered_for_successively_training.insert(0, files[selected_index])

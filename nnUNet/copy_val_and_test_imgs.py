@@ -1,3 +1,5 @@
+# helper script to copy the validation and test images from the original dataset to a new folder
+
 from pathlib import Path
 
 import cv2
