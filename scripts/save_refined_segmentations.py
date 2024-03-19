@@ -55,6 +55,7 @@ h5py_file = h5py.File(h5py_path, 'w')
 # store labels and their index
 h5py_file.attrs['labels'] = json.dumps(LightSegGrazPedWriDataset.BONE_LABEL_MAPPING)
 h5py_file.attrs['refine_params'] = json.dumps(refine_params)
+h5py_file.attrs['clearml_model_id'] = model_id
 
 for img_name in tqdm(available_files, unit='img', desc='Refine segmentation'):
     img_file = img_dir / (img_name + '.png')

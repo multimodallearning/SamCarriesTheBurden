@@ -16,7 +16,7 @@ from utils.cvat_parser import CVATParser
 
 device = "cuda:4" if torch.cuda.is_available() else "cpu"
 
-model_id = 'bf9286353ce649ef880774f62715c100'
+model_id = 'daae93c8731f4914b0c88278076dc192'
 print(f'Using model: {model_id}')
 cl_model = InputModel(model_id)
 model = UNet.load(cl_model.get_weights(), device).eval().to(device)
@@ -39,6 +39,7 @@ h5py_path = h5py_path / f'raw_segmentations_{len(available_files)}.h5'
 h5py_file = h5py.File(h5py_path, 'w')
 # store labels and their index
 h5py_file.attrs['labels'] = json.dumps(LightSegGrazPedWriDataset.BONE_LABEL_MAPPING)
+h5py_file.attrs['clearml_model_id'] = model_id
 
 for img_name in tqdm(available_files, unit='img', desc='Predict segmentation'):
     img_file = img_dir / (img_name + '.png')
