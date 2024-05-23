@@ -62,7 +62,7 @@ def forward_bce(mode: str, data_loader: DataLoader, epoch: int,  # have to be gi
 
     log.report_histogram('Dice', mode, iteration=epoch,
                          values=dsc.nanmean(0).cpu().numpy(),
-                         xlabels=data_loader.dataset.BONE_LABEL, xaxis='class', yaxis='dice')
+                         xlabels=data_loader.dataset.CLASS_LABEL, xaxis='class', yaxis='dice')
 
     return dsc.nanmean(), loss_collector.compute()
 
