@@ -47,3 +47,4 @@ _darcs
 yarn.lock
 package-lock.json
 /data/bce_nnunet_predictions/
+**.nii.gz

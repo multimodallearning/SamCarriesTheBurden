@@ -48,6 +48,8 @@ def forward_bce(mode: str, data_loader: DataLoader, epoch: int,  # have to be gi
         if model.training:  # backward
             optimizer.zero_grad(set_to_none=True)
             loss.backward()
+            # Clip gradients
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optimizer.step()
 
         # track metrics

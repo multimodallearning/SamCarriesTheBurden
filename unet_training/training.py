@@ -8,7 +8,7 @@ from tqdm import trange
 
 from custom_arcitecture.classic_u_net import UNet
 from custom_arcitecture.lraspp import LRASPPOnSAM
-from scripts.jsrt_dataset import JSRTDataset
+from scripts.dental_dataset import DentalDataset
 from unet_training.forward_func import forward_bce
 from unet_training.hyper_params import hp_parser
 
@@ -27,7 +27,7 @@ if hp.lr_scheduler:
     tags.append('lr_scheduler')
 if hp.architecture == 'lraspp_on_sam':
     tags.append('SAM')
-task = Task.init(project_name='Kids Bone Checker/Bone segmentation/jsrt',
+task = Task.init(project_name='Kids Bone Checker/Bone segmentation/dental',
                  task_name=f'initial on {'all' if hp.num_train_samples == -1 else hp.num_train_samples} training data',
                  auto_connect_frameworks=False, tags=tags)
 # init pytorch
@@ -37,10 +37,10 @@ device = torch.device(f'cuda:{hp.gpu_id}' if torch.cuda.is_available() else 'cpu
 # define data loaders
 dl_kwargs = {'num_workers': 0, 'pin_memory': True} if torch.cuda.is_available() else {}
 # bootstrap training set
-ds_train = JSRTDataset('train', number_training_samples=hp.num_train_samples if hp.num_train_samples != -1 else 'all')
+ds_train = DentalDataset('train', number_training_samples=hp.num_train_samples if hp.num_train_samples != -1 else 'all')
 train_dl = DataLoader(ds_train, batch_size=hp.batch_size, drop_last=False, **dl_kwargs,
                       sampler=RandomSampler(ds_train, replacement=True, num_samples=hp.data_sample_per_epoch))
-val_dl = DataLoader(JSRTDataset('val'), batch_size=hp.infer_batch_size, shuffle=False, drop_last=False,
+val_dl = DataLoader(DentalDataset('val'), batch_size=hp.infer_batch_size, shuffle=False, drop_last=False,
                     **dl_kwargs)
 
 # define model
