@@ -10,10 +10,10 @@ from tqdm import tqdm
 
 from segment_anything import sam_model_registry, SamPredictor
 
-graz_img_dir = Path('data/img_only_front_all_left').glob('*.png')
+graz_img_dir = Path('data/DentalSeg/img').glob('*.jpg')
 
 # set up SAM
-sam_type = ['sam', 'medsam'][1]
+sam_type = ['sam', 'medsam'][0]
 print(f'Using {sam_type} model')
 if sam_type == 'sam':
     sam_checkpoint = "data/sam_vit_h_4b8939.pth"
@@ -28,7 +28,7 @@ sam.to(device=device)
 predictor = SamPredictor(sam)
 
 # create h5 file
-h5py_path = Path(f'data/graz_{sam_type}_img_embedding.h5')
+h5py_path = Path(f'data/dental_{sam_type}_img_embedding.h5')
 h5py_file = h5py.File(h5py_path, 'x')
 h5py_file.attrs['checkpoint'] = sam_checkpoint.split('/')[-1]
 h5py_file.attrs['img_encoder_img_size'] = sam.image_encoder.img_size

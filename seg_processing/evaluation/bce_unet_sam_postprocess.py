@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 from custom_arcitecture.classic_u_net import UNet
 from plot_utils import sam_prompt_debug_plots
-from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
+from scripts.dental_dataset import DentalDataset
 from segment_anything.utils.prompt_utils import PromptExtractor
 from utils.dice_coefficient import multilabel_dice
 from utils.seg_refinement import SAMSegRefiner, SegEnhance
@@ -18,13 +18,10 @@ prompts2use1st = ["box"]
 prompts2use2nd = ["pos_points", "neg_points"]
 plot_results = False
 
-model_id = ['bf9286353ce649ef880774f62715c100',  # initial training
-            '0ea1c877eedc446b828048456ffd561a',  # sam pseudo labels
-            'daae93c8731f4914b0c88278076dc192',  # unet trained with sam pseudo labels
-            ][0]
+model_id = 'fff060f575994796936422b8c2819c5e'
 cl_model = InputModel(model_id)
 model = UNet.load(cl_model.get_weights(), 'cpu').eval()
-ds = LightSegGrazPedWriDataset('test')
+ds = DentalDataset('val')
 
 sam_type = ['SAM', 'MedSAM'][0]
 sam_refiner = SAMSegRefiner(sam_type, 'cpu', [prompts2use1st, prompts2use2nd])
@@ -75,7 +72,7 @@ print(f'SAM DSC: {dsc_sam.nanmean()}')
 # Dice per class
 nan_mask = dsc_unet.isnan().all(0) & dsc_sam.isnan().all(0)
 nan_mask = ~nan_mask
-plot_labels = [lbl for lbl, idx in ds.BONE_LABEL_MAPPING.items() if nan_mask[idx]]
+plot_labels = [lbl for idx, lbl in enumerate(ds.CLASS_LABEL) if nan_mask[idx]]
 plot_dsc_nnunet = dsc_unet[:, nan_mask].nanmean(0).tolist()
 plot_dsc_sam = dsc_sam[:, nan_mask].nanmean(0).tolist()
 df = pd.DataFrame({'Anatomy': plot_labels,

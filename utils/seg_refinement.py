@@ -77,7 +77,7 @@ class SAMSegRefiner(SegRefiner):
         if sam_type == 'SAM':
             sam_checkpoint = "data/sam_vit_h_4b8939.pth"
             sam_model_type = "vit_h"
-            img_embedding_h5 = "data/graz_sam_img_embedding.h5"
+            img_embedding_h5 = "data/dental_sam_img_embedding.h5"
         elif sam_type == 'MedSAM':
             sam_checkpoint = "data/medsam_vit_b.pth"
             sam_model_type = "vit_b"

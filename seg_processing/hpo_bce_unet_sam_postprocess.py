@@ -57,7 +57,7 @@ def objective(trial: optuna.Trial):
     return dsc_diff_score
 
 
-device = 'cuda:4' if torch.cuda.is_available() else 'cpu'
+device = 'cuda:3' if torch.cuda.is_available() else 'cpu'
 model_id = '2bd2f4be80b9446286416993ba6a87c1'  # initial training
 cl_model = InputModel(model_id)
 model = UNet.load(cl_model.get_weights(), device).eval()

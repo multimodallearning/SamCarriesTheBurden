@@ -1,5 +1,7 @@
+import json
 import logging
 
+import h5py
 import torch
 from torch.utils.data import Dataset
 import cv2
@@ -79,6 +81,52 @@ class DentalDataset(Dataset):
         img, mask = self.data[filestem]
 
         return img, mask.float(), filestem
+
+
+class SavedDentalDataset(Dataset):
+    CLASS_LABEL = DentalDataset.CLASS_LABEL
+    N_CLASSES = len(CLASS_LABEL)
+    BCE_POS_WEIGHTS = DentalDataset.BCE_POS_WEIGHTS
+    IMG_MEAN = DentalDataset.IMG_MEAN
+    IMG_STD = DentalDataset.IMG_STD
+    def __init__(self, h5_file: Path):
+        super().__init__()
+        h5_file = h5py.File(h5_file, 'r')
+        lbl_loaded = json.loads(h5_file.attrs['labels'])
+        assert list(lbl_loaded.keys()) == self.CLASS_LABEL, 'Loaded labels do not match'
+
+        # load data meta and other information
+        self.img_path = Path('data/DentalSeg/img')
+        self.ds_saved_seg = h5_file['segmentation_mask']
+
+        # get file names
+        self.available_file_names = list(self.ds_saved_seg.keys())
+
+        # init transformation
+        self.resize_lbl = lambda x: F.interpolate(x.float().unsqueeze(0), size=(224, 384), mode='nearest').squeeze(0)
+
+    def __len__(self):
+        return len(self.available_file_names)
+
+    def __getitem__(self, index) -> (torch.Tensor, torch.Tensor, str):
+        """
+        get item by index
+        :param index: index of item
+        :return: image, ground truth, file name
+        """
+        file_name = self.available_file_names[index]
+
+        # segmentation mask
+        seg_masks = torch.from_numpy(self.ds_saved_seg[file_name][:])
+        y = self.resize_lbl(seg_masks)
+
+        # numpy image to tensor and add channel dimension
+        img = cv2.imread(str(self.img_path.joinpath(file_name).with_suffix('.jpg')), cv2.IMREAD_GRAYSCALE)
+        img = cv2.resize(img, y.shape[-2:][::-1], interpolation=cv2.INTER_LINEAR)
+        x = torch.from_numpy(img).unsqueeze(0).float()
+        x /= 255
+
+        return x, y, file_name
 
 
 if __name__ == '__main__':

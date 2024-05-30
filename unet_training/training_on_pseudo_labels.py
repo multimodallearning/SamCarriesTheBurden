@@ -9,10 +9,9 @@ from torchmetrics import MeanMetric
 from tqdm import trange
 
 from custom_arcitecture.classic_u_net import UNet
-from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset, SavedSegGrazPedWriDataset
+from scripts.dental_dataset import DentalDataset, SavedDentalDataset
 from unet_training.forward_func import forward_bce
 from unet_training.hyper_params import hp_parser
-from evaluation import clearml_model_id
 
 hp_parser.add_argument('--train_from_scratch', default=True, action=argparse.BooleanOptionalAction,
                        help='whether to train from scratch')
@@ -41,10 +40,10 @@ if hp.pseudo_label == 'sam':
 else:
     task_name = hp.pseudo_label + f'_num_train_{hp.num_train_samples}'
 
-initial_trained_model_id = clearml_model_id.unet_ids[hp.num_train_samples]
+initial_trained_model_id = 'fff060f575994796936422b8c2819c5e'
 cl_model = InputModel(initial_trained_model_id)
 
-task = Task.init(project_name='Kids Bone Checker/Bone segmentation/pseudo label training',
+task = Task.init(project_name='Kids Bone Checker/Bone segmentation/dental pseudo label training',
                  task_name=task_name, auto_connect_frameworks=False, tags=tags)
 task.set_input_model(cl_model.id)
 
@@ -58,14 +57,14 @@ if hp.pseudo_label == 'nnunet':
     saved_seg_path = saved_seg_path.joinpath('SegGraz_nnunet_predictions.h5')
 elif hp.pseudo_label == 'raw':
     saved_seg_path /= initial_trained_model_id
-    saved_seg_path /= 'raw_segmentations_all.h5'
+    saved_seg_path /= 'raw_segmentations_450.h5'
 elif hp.pseudo_label == 'sam':
     saved_seg_path /= initial_trained_model_id
-    saved_seg_path /= f'sam_{str.join('_', hp.prompt1st) + '_refine_' + str.join('_', hp.prompt2nd)}_all.h5'
+    saved_seg_path /= f'sam_{str.join('_', hp.prompt1st) + '_refine_' + str.join('_', hp.prompt2nd)}_450.h5'
 dl_kwargs = {'num_workers': 4, 'pin_memory': True} if torch.cuda.is_available() else {}
-train_dl = DataLoader(SavedSegGrazPedWriDataset(str(saved_seg_path), use_500_split=hp.split500),
-                      batch_size=hp.batch_size, shuffle=True, drop_last=True, **dl_kwargs)
-val_dl = DataLoader(LightSegGrazPedWriDataset('val'), batch_size=hp.infer_batch_size, shuffle=False, drop_last=False,
+train_dl = DataLoader(SavedDentalDataset(str(saved_seg_path)), batch_size=hp.batch_size, shuffle=True, drop_last=True,
+                      **dl_kwargs)
+val_dl = DataLoader(DentalDataset('val'), batch_size=hp.infer_batch_size, shuffle=False, drop_last=False,
                     **dl_kwargs)
 
 # define model
@@ -81,8 +80,7 @@ loss_collector = MeanMetric().to(device)
 
 fwd_kwargs = {'model': model, 'optimizer': optimizer, 'device': device, 'loss_collector': loss_collector,
               'data_aug': hp.data_aug,
-              'bce_pos_weight': LightSegGrazPedWriDataset.POS_CLASS_WEIGHT.view(-1, 1, 1).expand(-1, 384, 224).to(
-                  device)}
+              'bce_pos_weight': DentalDataset.BCE_POS_WEIGHTS.to(device)}
 
 for epoch in trange(hp.epochs, desc='training'):
     forward_bce('train', train_dl, epoch, **fwd_kwargs)

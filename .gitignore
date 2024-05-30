@@ -48,3 +48,7 @@ yarn.lock
 package-lock.json
 /data/bce_nnunet_predictions/
 **.nii.gz
+**.tif
+**.txt
+**.json
+**.jpg
