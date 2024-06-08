@@ -16,9 +16,9 @@ from utils.seg_refinement import SAMSegRefiner, SegEnhance
 
 prompts2use1st = ["box"]
 prompts2use2nd = ["pos_points", "neg_points"]
-plot_results = False
+plot_results = True
 
-model_id = 'fff060f575994796936422b8c2819c5e'
+model_id = '274591116b004e348cfe34ac9608ba9e'
 cl_model = InputModel(model_id)
 model = UNet.load(cl_model.get_weights(), 'cpu').eval()
 ds = DentalDataset('val')
@@ -39,27 +39,30 @@ dsc_unet = []
 dsc_sam = []
 dsc_sam_est = []
 for img, y, file_name in tqdm(ds, unit='img'):
-    if file_name == '0172_0304693626_01_WRI-R1_F014':
-        continue
-    y = y.unsqueeze(0).bool()
-    # forward
-    with torch.inference_mode():
-        x = (img - ds.IMG_MEAN) / ds.IMG_STD
-        y_hat = model(x.unsqueeze(0)).squeeze(0)
-        y_hat = torch.sigmoid(y_hat)
-    y_hat = y_hat.clone()
-    # refinement
-    refined_sam_masks, est_dice = seg_processor.enhance(y_hat, file_name)
+    try:
+        if file_name == '0172_0304693626_01_WRI-R1_F014':
+            continue
+        y = y.unsqueeze(0).bool()
+        # forward
+        with torch.inference_mode():
+            x = (img - ds.IMG_MEAN) / ds.IMG_STD
+            y_hat = model(x.unsqueeze(0)).squeeze(0)
+            y_hat = torch.sigmoid(y_hat)
+        y_hat = y_hat.clone()
+        # refinement
+        refined_sam_masks, est_dice = seg_processor.enhance(y_hat, file_name)
 
-    unet_mask = y_hat > 0.5
-    dsc_unet.append(multilabel_dice(unet_mask.unsqueeze(0), y))
-    dsc_sam.append(multilabel_dice(refined_sam_masks.unsqueeze(0).bool(), y))
-    dsc_sam_est.append(est_dice)
+        unet_mask = y_hat > 0.5
+        dsc_unet.append(multilabel_dice(unet_mask.unsqueeze(0), y))
+        dsc_sam.append(multilabel_dice(refined_sam_masks.unsqueeze(0).bool(), y))
+        dsc_sam_est.append(est_dice)
 
-    if plot_results:
-        prompt_union = set(prompts2use1st + prompts2use2nd)
-        sam_prompt_debug_plots(PromptExtractor(seg_processor.last_preprocessed_seg > 0.5), img, y_hat, refined_sam_masks,
-                               est_dice, list(prompt_union), plot_save_path / file_name)
+        if plot_results:
+            prompt_union = set(prompts2use1st + prompts2use2nd)
+            sam_prompt_debug_plots(PromptExtractor(seg_processor.last_preprocessed_seg > 0.5), img, y_hat, refined_sam_masks,
+                                   est_dice, list(prompt_union), plot_save_path / file_name)
+    except Exception as e:
+        print(f'Skipping. Error in {file_name}: {e}')
 
 dsc_unet = torch.cat(dsc_unet, dim=0)
 dsc_sam = torch.cat(dsc_sam, dim=0)

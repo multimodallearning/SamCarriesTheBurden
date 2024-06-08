@@ -9,15 +9,11 @@ from tqdm import trange
 
 from custom_arcitecture.classic_u_net import UNet
 from evaluation import clearml_model_id
-from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset, MeanTeacherSegGrazPedWriDataset
+from scripts.dental_dataset import MeanTeacherDentalDataset, DentalDataset
 from unet_training.custom_collate import create_mask_for_unlabeled_data
 from unet_training.forward_func import forward_mean_teacher_bce
 from unet_training.hyper_params import hp_parser
 
-hp_parser.add_argument('--split500', type=bool, default=True,
-                       help='whether to use the predefined 500 split instead of all available data')
-hp_parser.add_argument('--num_train_samples', type=int, default=43,
-                       help='number of training samples initial model was trained on.')
 hp_parser.add_argument('--alpha', type=float, default=0.996, help='exponential moving average decay')
 hp = hp_parser.parse_args()
 
@@ -27,11 +23,11 @@ if hp.data_aug > 0:
 if hp.lr_scheduler:
     tags.append('lr_scheduler')
 
-student_model_id = clearml_model_id.unet_ids[hp.num_train_samples]
+student_model_id = clearml_model_id.dental_models['unet_45_lbl']
 cl_model = InputModel(student_model_id)
 
-task = Task.init(project_name='Kids Bone Checker/Bone segmentation/mean teacher',
-                 task_name=f'Mean teacher on {hp.num_train_samples} training data', auto_connect_frameworks=False, tags=tags)
+task = Task.init(project_name='Kids Bone Checker/Bone segmentation/dental',
+                 task_name=f'Mean teacher', auto_connect_frameworks=False, tags=tags)
 task.set_input_model(cl_model.id)
 
 # init pytorch
@@ -39,11 +35,11 @@ torch.manual_seed(hp.seed)
 device = torch.device(f'cuda:{hp.gpu_id}' if torch.cuda.is_available() else 'cpu')
 
 # define data loaders
+num_training_samples = 45
 dl_kwargs = {'num_workers': 4, 'pin_memory': True} if torch.cuda.is_available() else {}
-train_dl = DataLoader(MeanTeacherSegGrazPedWriDataset(use_500_split=hp.split500, number_training_samples=hp.num_train_samples),
-                      batch_size=hp.batch_size, shuffle=True, drop_last=True, **dl_kwargs, collate_fn=create_mask_for_unlabeled_data)
-val_dl = DataLoader(LightSegGrazPedWriDataset('val'), batch_size=hp.infer_batch_size, shuffle=False, drop_last=False,
-                    **dl_kwargs)
+train_dl = DataLoader(MeanTeacherDentalDataset(num_training_samples), batch_size=hp.batch_size, shuffle=True,
+                      drop_last=True, **dl_kwargs, collate_fn=create_mask_for_unlabeled_data)
+val_dl = DataLoader(DentalDataset('val'), batch_size=hp.infer_batch_size, shuffle=False, drop_last=False, **dl_kwargs)
 
 # define model
 student_model = UNet.load(cl_model.get_weights(), device).to(device)
@@ -56,8 +52,7 @@ loss_collectors = [MeanMetric().to(device), MeanMetric().to(device), MeanMetric(
 
 fwd_kwargs = {'student': student_model, 'teacher': teacher_model, 'optimizer': optimizer, 'device': device,
               'loss_collectors': loss_collectors, 'data_aug': hp.data_aug, 'alpha': hp.alpha,
-              'bce_pos_weight': LightSegGrazPedWriDataset.POS_CLASS_WEIGHT.view(-1, 1, 1).expand(-1, 384, 224).to(
-                  device)}
+              'bce_pos_weight': MeanTeacherDentalDataset.BCE_POS_WEIGHTS.to(device)}
 
 for epoch in trange(hp.epochs, desc='training'):
     forward_mean_teacher_bce('train', train_dl, epoch, **fwd_kwargs)

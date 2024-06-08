@@ -128,11 +128,47 @@ class SavedDentalDataset(Dataset):
 
         return x, y, file_name
 
+class MeanTeacherDentalDataset(Dataset):
+    CLASS_LABEL = DentalDataset.CLASS_LABEL
+    N_CLASSES = len(CLASS_LABEL)
+    BCE_POS_WEIGHTS = DentalDataset.BCE_POS_WEIGHTS
+    IMG_MEAN = DentalDataset.IMG_MEAN
+    IMG_STD = DentalDataset.IMG_STD
+
+    def __init__(self, number_training_samples: int | str = 'all'):
+        """
+        Dataset that combines dataset with and dataset without ground truth.
+        """
+        super().__init__()
+        self.img_path = Path('data/DentalSeg/img')
+
+        self.ds_with_gt = DentalDataset('train', number_training_samples)
+        self.unlabeled_files_names = self.img_path.rglob('*.jpg')
+        self.unlabeled_files_names = [f.stem for f in self.unlabeled_files_names]
+        self.unlabeled_files_names = list(set(self.unlabeled_files_names) - set(self.ds_with_gt.available_files))
+        assert len(set(self.unlabeled_files_names) & set(self.ds_with_gt.available_files)) == 0, 'Files are duplicated'
+
+        self.available_file_names = self.ds_with_gt.available_files + self.unlabeled_files_names
+
+        # load images without ground truth
+        self.unlabeled_imgs = {}
+        for file_name in tqdm(self.unlabeled_files_names, desc='Loading unlabeled data', unit='file'):
+            img = cv2.imread(str(self.img_path.joinpath(file_name).with_suffix('.jpg')), cv2.IMREAD_GRAYSCALE)
+            img = cv2.resize(img, (384, 224), interpolation=cv2.INTER_LINEAR)
+            img = torch.from_numpy(img).unsqueeze(0).float()
+            img /= 255
+            self.unlabeled_imgs[file_name] = img
+
+    def __len__(self):
+        return len(self.available_file_names)
+
+    def __getitem__(self, index):
+        file_name = self.available_file_names[index]
+
+        if file_name in self.ds_with_gt.available_files:  # gt available
+            return self.ds_with_gt[self.ds_with_gt.available_files.index(file_name)]
+        else:  # no gt available
+            return self.unlabeled_imgs[file_name], None, file_name
 
 if __name__ == '__main__':
-    ds = DentalDataset('test')
-    print(len(ds))
-    for _, y, file in ds:
-        if y[-1].any():
-            print(file)
-            break
+    ds = MeanTeacherDentalDataset(45)

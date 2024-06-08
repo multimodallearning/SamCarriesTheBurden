@@ -6,8 +6,8 @@ from pathlib import Path
 
 
 class NNUNetPredictionLoader:
-    def __init__(self, num_train_samples: int = 43):
-        self.path2predictions = Path(f'data/bce_nnunet_predictions/result_{100 + num_train_samples}')
+    def __init__(self):
+        self.path2predictions = Path(f'data/bce_nnunet_predictions/dental')
         self.available_files = list(map(lambda f: f.stem, self.path2predictions.glob('*.npz')))
 
     def __len__(self):
@@ -19,8 +19,14 @@ class NNUNetPredictionLoader:
         return torch.from_numpy(p_hat).squeeze()
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':#
+    from matplotlib import pyplot as plt
+
     loader = NNUNetPredictionLoader()
     print(loader.available_files)
-    p = loader[loader.available_files[0]]
-    pass
+    p = loader[loader.available_files[-1]]
+    l = p > 0.5
+
+    plt.imshow(p.argmax(0), cmap='jet', alpha=l.any(0).float())
+    plt.show()
+

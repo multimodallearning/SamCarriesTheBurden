@@ -189,8 +189,8 @@ def forward_mean_teacher_bce(mode: str, data_loader: DataLoader, epoch: int,  # 
 
         log.report_histogram('Dice ' + mode, 'teacher', iteration=epoch,
                              values=dsc_t.nanmean(0).cpu().numpy(),
-                             xlabels=data_loader.dataset.BONE_LABEL, xaxis='class', yaxis='dice')
+                             xlabels=data_loader.dataset.CLASS_LABEL, xaxis='class', yaxis='dice')
 
         log.report_histogram('Dice ' + mode, 'student', iteration=epoch,
                              values=dsc_s.nanmean(0).cpu().numpy(),
-                             xlabels=data_loader.dataset.BONE_LABEL, xaxis='class', yaxis='dice')
+                             xlabels=data_loader.dataset.CLASS_LABEL, xaxis='class', yaxis='dice')

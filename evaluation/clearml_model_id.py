@@ -59,3 +59,10 @@ unet_mean_teacher_ids = {  # num_training_samples: model_id
     35: 'ac23eae5dce94b1ab22f9c8aa4208321',
     43: 'a7364b31977e42a2a15ac511cfed358f',
 }
+
+dental_models = {
+    'unet_45_lbl': 'fff060f575994796936422b8c2819c5e',
+    'unet_all_lbl': 'df0fe1e79c384b498e8236bcd89f0c2b',
+    'unet_raw_pseudo_lbl': '04678a5f6cd64c4bb6fce92074022a97',
+    'unet_sam_pseudo_lbl': '274591116b004e348cfe34ac9608ba9e',
+}
