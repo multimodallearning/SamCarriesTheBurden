@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 import optuna.visualization.matplotlib as vis
 from joblib import load
 
-model_id = '2bd2f4be80b9446286416993ba6a87c1'
-hpo_study = ['hpo_rnd_wlk_refine', 'grid_search_sam_refine'][0]
+model_id = 'fff060f575994796936422b8c2819c5e'
+hpo_study = ['hpo_rnd_wlk_refine', 'grid_search_sam_refine', 'tpe_search_sam_refine'][-1]
 study_file = Path('seg_processing/hpo_results') / model_id / (hpo_study + '.pkl')
 
 # Load the study

@@ -11,10 +11,11 @@ from tqdm import tqdm
 
 from custom_arcitecture.classic_u_net import UNet
 from scripts.dental_dataset import DentalDataset
+from evaluation.clearml_model_id import dental_models
 
 device = "cuda:3" if torch.cuda.is_available() else "cpu"
 
-model_id = 'fff060f575994796936422b8c2819c5e'
+model_id = dental_models['mean_teacher']
 print(f'Using model: {model_id}')
 cl_model = InputModel(model_id)
 model = UNet.load(cl_model.get_weights(), device).eval().to(device)
