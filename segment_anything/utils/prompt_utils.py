@@ -142,6 +142,7 @@ class PromptExtractor:
             prompts.append(p)
         return prompts
 
+
 def scale_coords(coords: torch.Tensor, original_size: Tuple[int, ...], target_size: Tuple[int, ...]) -> torch.Tensor:
     """
     Scales coordinates from original_size to target_size.
@@ -153,14 +154,17 @@ def scale_coords(coords: torch.Tensor, original_size: Tuple[int, ...], target_si
         tensor of shape (N, 2) with scaled coordinates
     """
     assert coords.ndim == 2, "coords should be 2D tensor of shape (N, 2)"
-    assert coords.shape[1] == len(original_size) == len(target_size), "coords should have same number of dimensions as original_size and target_size"
+    assert coords.shape[1] == len(original_size) == len(
+        target_size), "coords should have same number of dimensions as original_size and target_size"
 
     original_size = torch.tensor(original_size, dtype=torch.float, device=coords.device)
     target_size = torch.tensor(target_size, dtype=torch.float, device=coords.device)
 
     coords = coords.float()
-    coords = coords * (target_size / original_size).flip(-1) # because SAM takes points in (x, y) format, but shape is (H, W)
+    coords = coords * (target_size / original_size).flip(
+        -1)  # because SAM takes points in (x, y) format, but shape is (H, W)
     return coords
+
 
 def scale_box(box: torch.Tensor, original_size: Tuple[int, ...], target_size: Tuple[int, ...]) -> torch.Tensor:
     """
@@ -178,3 +182,39 @@ def scale_box(box: torch.Tensor, original_size: Tuple[int, ...], target_size: Tu
     box_as_coords = box.reshape(-1, 2)
     box_as_coords = scale_coords(box_as_coords, original_size, target_size)
     return box_as_coords.reshape(-1, 4)
+
+
+class SAMSelectingPromptExtractor(PromptExtractor):
+    def __init__(self, pred_mask: torch.Tensor):
+        assert pred_mask.dtype == torch.float, "pred_mask should be probabilities (float tensor)"
+        super().__init__(pred_mask > 0.5)
+        self.float_pred_mask = pred_mask
+
+    def extract(self, mask: bool = True) -> list[Prompt]:
+        """
+        Extracts prompts from the predicted mask.
+        Args:
+            mask: whether to extract mask logits
+        Returns:
+            list of prompts with all coordinates in (x, y) format
+        """
+        prompts = []
+        for class_idx in range(self.num_classes):
+            class_mask = self.float_pred_mask[class_idx]
+            # Skip classes with no initial segmentation
+            if not class_mask.any():
+                continue
+
+            p = Prompt(class_idx, self.pred_mask.shape[-2:])
+            p.pos_seeds = (class_mask == torch.max(class_mask)).nonzero().flip(-1)  # HW -> WH
+            p.neg_seeds = (class_mask == torch.min(class_mask)).nonzero().flip(-1)  # HW -> WH
+
+            # cover case where multiple maxima are present
+            p.pos_seeds = p.pos_seeds[0].unsqueeze(0)
+            p.neg_seeds = p.neg_seeds[0].unsqueeze(0)
+
+            if mask:
+                p.mask_logits = self._compute_logits_from_mask(class_idx)
+
+            prompts.append(p)
+        return prompts

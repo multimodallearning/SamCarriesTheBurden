@@ -238,7 +238,8 @@ class MeanTeacherSegGrazPedWriDataset(Dataset):
     BONE_LABEL_MAPPING = {k: v for k, v in zip(BONE_LABEL, range(len(BONE_LABEL)))}
     N_CLASSES = len(BONE_LABEL)
 
-    def __init__(self, use_500_split: bool, number_training_samples: int | str = 'all', rescale_HW: tuple = (384, 224)):
+    def __init__(self, use_500_split: bool, number_training_samples: int | str = 'all', rescale_HW: tuple = (384, 224),
+                 model_id_pseudo_label: str = None, dsc_agreement_threshold: float = None):
         """
         Dataset that combines dataset with and dataset without ground truth.
         """
@@ -252,11 +253,24 @@ class MeanTeacherSegGrazPedWriDataset(Dataset):
         else:
             self.unlabeled_files_names = self.img_path.rglob('*.png')
             self.unlabeled_files_names = [f.stem for f in self.unlabeled_files_names]
-            self.unlabeled_files_names = list(set(self.unlabeled_files_names) - set(self.ds_with_gt.available_file_names))
+            self.unlabeled_files_names = list(
+                set(self.unlabeled_files_names) - set(self.ds_with_gt.available_file_names))
             assert len(
-                set(self.unlabeled_files_names) & set(self.ds_with_gt.available_file_names)) == 0, 'Files are duplicated'
+                set(self.unlabeled_files_names) & set(
+                    self.ds_with_gt.available_file_names)) == 0, 'Files are duplicated'
 
         self.available_file_names = self.ds_with_gt.available_file_names + self.unlabeled_files_names
+
+        # add reliability pseudo label
+        self.use_pseudo_label = False
+        if model_id_pseudo_label is not None and dsc_agreement_threshold is not None:
+            self.use_pseudo_label = True
+            pseudo_label_path = Path('data/seg_masks').joinpath(model_id_pseudo_label).joinpath(
+                f'selected_pseudo_labels_500_dsc_{str(dsc_agreement_threshold).replace(".", "")}.h5')
+            assert pseudo_label_path.exists(), f'Pseudo label file does not exist. Please check the path: {pseudo_label_path}'
+            self.ds_with_pseudo_lbl = SavedSegGrazPedWriDataset(pseudo_label_path, False, rescale_HW)
+            assert all([f in self.available_file_names for f in self.ds_with_pseudo_lbl.available_file_names]), \
+                'Pseudo label files are not in available files'
 
     def __len__(self):
         return len(self.available_file_names)
@@ -266,6 +280,8 @@ class MeanTeacherSegGrazPedWriDataset(Dataset):
 
         if file_name in self.ds_with_gt.available_file_names:  # gt available
             return self.ds_with_gt[self.ds_with_gt.available_file_names.index(file_name)]
+        elif self.use_pseudo_label and file_name in self.ds_with_pseudo_lbl.available_file_names:  # pseudo label available
+            return self.ds_with_pseudo_lbl[self.ds_with_pseudo_lbl.available_file_names.index(file_name)]
         else:  # no gt available
             # numpy image to tensor and add channel dimension
             img = cv2.imread(str(self.img_path.joinpath(file_name).with_suffix('.png')), cv2.IMREAD_GRAYSCALE)

@@ -14,15 +14,15 @@ from custom_arcitecture.classic_u_net import UNet
 from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
 from utils.cvat_parser import CVATParser
 
-device = "cuda:4" if torch.cuda.is_available() else "cpu"
+device = "cuda:3" if torch.cuda.is_available() else "cpu"
 
-model_id = 'daae93c8731f4914b0c88278076dc192'
+model_id = 'a7364b31977e42a2a15ac511cfed358f'
 print(f'Using model: {model_id}')
 cl_model = InputModel(model_id)
 model = UNet.load(cl_model.get_weights(), device).eval().to(device)
 H, W = 384, 224
 
-n_files = 'all'  # 500
+n_files = 500
 img_dir = Path('data/img_only_front_all_left')
 if n_files == 500:
     available_files = pd.read_csv(f'data/{n_files}unlabeled_sample.csv', index_col='filestem').index.tolist()
