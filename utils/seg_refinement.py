@@ -123,12 +123,12 @@ class RndWalkSegRefiner(SegRefiner):
         self.laplace_sigma = laplace_sigma
         self.last_input_seg = None  # buffer for plotting
 
-        self.img_path = Path('data/img_only_front_all_left')
+        self.img_path = Path('data/DentalSeg/img')
 
     def refine(self, seg: torch.Tensor, file_name: str) -> torch.Tensor:
         device = seg.device
         self.last_input_seg = seg
-        img = cv2.imread(str(self.img_path / (file_name + '.png')), cv2.IMREAD_GRAYSCALE)
+        img = cv2.imread(str(self.img_path / (file_name + '.jpg')), cv2.IMREAD_GRAYSCALE)
         img = cv2.resize(img, (seg.shape[-1], seg.shape[-2]))
         img = torch.from_numpy(img).to(device)
 

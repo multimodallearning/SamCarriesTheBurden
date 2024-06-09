@@ -188,6 +188,7 @@ class SAMSelectingPromptExtractor(PromptExtractor):
     def __init__(self, pred_mask: torch.Tensor):
         assert pred_mask.dtype == torch.float, "pred_mask should be probabilities (float tensor)"
         super().__init__(pred_mask > 0.5)
+        self.float_pred_mask = pred_mask
 
     def extract(self, mask: bool = True) -> list[Prompt]:
         """
@@ -199,7 +200,7 @@ class SAMSelectingPromptExtractor(PromptExtractor):
         """
         prompts = []
         for class_idx in range(self.num_classes):
-            class_mask = self.pred_mask[class_idx]
+            class_mask = self.float_pred_mask[class_idx]
             # Skip classes with no initial segmentation
             if not class_mask.any():
                 continue

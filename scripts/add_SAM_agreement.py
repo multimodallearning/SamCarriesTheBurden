@@ -15,7 +15,6 @@ from evaluation.clearml_model_id import dental_models
 from segment_anything.sam_mask_decoder_head import SAMMaskDecoderHead
 from segment_anything.utils.prompt_utils import SAMSelectingPromptExtractor
 from utils.dice_coefficient import multilabel_dice
-from matplotlib import pyplot as plt
 
 device = "cuda:3" if torch.cuda.is_available() else "cpu"
 
@@ -57,13 +56,5 @@ for img_name in tqdm(available_files, unit='img', desc='Calculate SAM agreement'
 
 
     dsc = multilabel_dice(sam_mask.unsqueeze(0), unet_mask.unsqueeze(0) > 0.5).nanmean().item()
-    print(f'{img_name} SAM agreement: {dsc}')
-    #h5py_file['segmentation_mask/' + img_name].attrs['SAM_agreement_dsc'] = dsc
-    fig, axs = plt.subplots(1, 2)
-    axs[0].imshow(unet_mask.argmax(0).cpu(), alpha=unet_mask.bool().any(0).float(), cmap='jet')
-    axs[0].set_title('UNet')
-
-    axs[1].imshow(sam_mask.float().argmax(0).cpu(), alpha=sam_mask.any(0).float(), cmap='jet')
-    axs[1].set_title('SAM')
-    plt.show()
+    h5py_file['segmentation_mask/' + img_name].attrs['SAM_agreement_dsc'] = dsc
 h5py_file.close()

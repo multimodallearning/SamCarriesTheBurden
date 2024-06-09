@@ -14,7 +14,7 @@ from utils.seg_refinement import SAMSegRefiner, SegEnhance, RndWalkSegRefiner
 
 # parameters
 architecture = 'UNet'
-refinement = 'SAM'
+refinement = 'RndWalk'
 print(f'Architecture: {architecture}, refinement: {refinement}')
 
 ds = DentalDataset('test')
@@ -26,7 +26,7 @@ model_id = {
     'UNet_pseudo_lbl_raw': clearml_model_id.dental_models['unet_raw_pseudo_lbl'],
     'UNet_pseudo_lbl_sam': clearml_model_id.dental_models['unet_sam_pseudo_lbl'],
     # 'SAM_LRASPP': #TBA,
-    # 'UNet_mean_teacher': #TBA
+    'UNet_mean_teacher': clearml_model_id.dental_models['mean_teacher']
 }[architecture]
 
 if architecture != 'UNet' and refinement != 'raw':
