@@ -81,7 +81,7 @@ class SAMSegRefiner(SegRefiner):
         elif sam_type == 'MedSAM':
             sam_checkpoint = "data/medsam_vit_b.pth"
             sam_model_type = "vit_b"
-            img_embedding_h5 = "data/graz_medsam_img_embedding.h5"
+            img_embedding_h5 = "data/dental_medsam_img_embedding.h5"
         else:
             raise NotImplementedError(f'Unknown SAM type: {sam_type}')
         self.sam_predictor = SAMMaskDecoderHead(sam_checkpoint, sam_model_type, device, img_embedding_h5)

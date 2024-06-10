@@ -14,11 +14,11 @@ from utils.seg_refinement import SAMSegRefiner, SegEnhance, RndWalkSegRefiner
 
 # parameters
 architecture = 'UNet'
-refinement = 'RndWalk'
+refinement = 'MedSAM'
 print(f'Architecture: {architecture}, refinement: {refinement}')
 
 ds = DentalDataset('test')
-device = 'cuda:3' if torch.cuda.is_available() else 'cpu'
+device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
 model_id = {
     'UNet': clearml_model_id.dental_models['unet_45_lbl'],

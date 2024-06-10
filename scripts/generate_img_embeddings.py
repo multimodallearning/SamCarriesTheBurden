@@ -13,7 +13,7 @@ from segment_anything import sam_model_registry, SamPredictor
 graz_img_dir = Path('data/DentalSeg/img').glob('*.jpg')
 
 # set up SAM
-sam_type = ['sam', 'medsam'][0]
+sam_type = ['sam', 'medsam'][1]
 print(f'Using {sam_type} model')
 if sam_type == 'sam':
     sam_checkpoint = "data/sam_vit_h_4b8939.pth"
@@ -22,7 +22,7 @@ elif sam_type == 'medsam':
     sam_checkpoint = "data/medsam_vit_b.pth"
     model_type = "vit_b"
 
-device = "cuda:3" if torch.cuda.is_available() else "cpu"
+device = "cuda:0" if torch.cuda.is_available() else "cpu"
 sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
 sam.to(device=device)
 predictor = SamPredictor(sam)
