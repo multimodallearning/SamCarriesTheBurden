@@ -16,7 +16,7 @@ from segment_anything.sam_mask_decoder_head import SAMMaskDecoderHead
 from segment_anything.utils.prompt_utils import SAMSelectingPromptExtractor
 from utils.dice_coefficient import multilabel_dice
 
-device = "cuda:3" if torch.cuda.is_available() else "cpu"
+device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 model_id = dental_models['mean_teacher']
 cl_model = InputModel(model_id)

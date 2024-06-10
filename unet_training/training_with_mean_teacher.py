@@ -15,6 +15,8 @@ from unet_training.forward_func import forward_mean_teacher_bce
 from unet_training.hyper_params import hp_parser
 
 hp_parser.add_argument('--alpha', type=float, default=0.996, help='exponential moving average decay')
+hp_parser.add_argument('--dsc_sam_threshold', type=float, default=0,
+                       help='Dice coefficient threshold for SAM agreement')
 hp = hp_parser.parse_args()
 
 tags = []
@@ -37,7 +39,8 @@ device = torch.device(f'cuda:{hp.gpu_id}' if torch.cuda.is_available() else 'cpu
 # define data loaders
 num_training_samples = 45
 dl_kwargs = {'num_workers': 4, 'pin_memory': True} if torch.cuda.is_available() else {}
-train_dl = DataLoader(MeanTeacherDentalDataset(num_training_samples), batch_size=hp.batch_size, shuffle=True,
+ds_kwargs = {'dsc_agreement_threshold': hp.dsc_sam_threshold, 'model_id_pseudo_label': '3bdbce9d81b24aa796c389cd2e188313'} if hp.dsc_sam_threshold > 0 else {}
+train_dl = DataLoader(MeanTeacherDentalDataset(num_training_samples, **ds_kwargs), batch_size=hp.batch_size, shuffle=True,
                       drop_last=True, **dl_kwargs, collate_fn=create_mask_for_unlabeled_data)
 val_dl = DataLoader(DentalDataset('val'), batch_size=hp.infer_batch_size, shuffle=False, drop_last=False, **dl_kwargs)
 

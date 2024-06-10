@@ -89,6 +89,7 @@ class SavedDentalDataset(Dataset):
     BCE_POS_WEIGHTS = DentalDataset.BCE_POS_WEIGHTS
     IMG_MEAN = DentalDataset.IMG_MEAN
     IMG_STD = DentalDataset.IMG_STD
+
     def __init__(self, h5_file: Path):
         super().__init__()
         h5_file = h5py.File(h5_file, 'r')
@@ -128,6 +129,7 @@ class SavedDentalDataset(Dataset):
 
         return x, y, file_name
 
+
 class MeanTeacherDentalDataset(Dataset):
     CLASS_LABEL = DentalDataset.CLASS_LABEL
     N_CLASSES = len(CLASS_LABEL)
@@ -135,7 +137,8 @@ class MeanTeacherDentalDataset(Dataset):
     IMG_MEAN = DentalDataset.IMG_MEAN
     IMG_STD = DentalDataset.IMG_STD
 
-    def __init__(self, number_training_samples: int | str = 'all'):
+    def __init__(self, number_training_samples: int | str = 'all', model_id_pseudo_label: str = None,
+                 dsc_agreement_threshold: float = None):
         """
         Dataset that combines dataset with and dataset without ground truth.
         """
@@ -149,6 +152,17 @@ class MeanTeacherDentalDataset(Dataset):
         assert len(set(self.unlabeled_files_names) & set(self.ds_with_gt.available_files)) == 0, 'Files are duplicated'
 
         self.available_file_names = self.ds_with_gt.available_files + self.unlabeled_files_names
+
+        # add reliability pseudo label
+        self.use_pseudo_label = False
+        if model_id_pseudo_label is not None and dsc_agreement_threshold is not None:
+            self.use_pseudo_label = True
+            pseudo_label_path = Path('data/seg_masks').joinpath(model_id_pseudo_label).joinpath(
+                f'selected_pseudo_labels_450_dsc_{str(dsc_agreement_threshold).replace(".", "")}.h5')
+            assert pseudo_label_path.exists(), f'Pseudo label file does not exist. Please check the path: {pseudo_label_path}'
+            self.ds_with_pseudo_lbl = SavedDentalDataset(pseudo_label_path)
+            assert all([f in self.available_file_names for f in self.ds_with_pseudo_lbl.available_file_names]), \
+                'Pseudo label files are not in available files'
 
         # load images without ground truth
         self.unlabeled_imgs = {}
@@ -169,6 +183,7 @@ class MeanTeacherDentalDataset(Dataset):
             return self.ds_with_gt[self.ds_with_gt.available_files.index(file_name)]
         else:  # no gt available
             return self.unlabeled_imgs[file_name], None, file_name
+
 
 if __name__ == '__main__':
     ds = MeanTeacherDentalDataset(45)
