@@ -47,3 +47,6 @@ _darcs
 yarn.lock
 package-lock.json
 /data/bce_nnunet_predictions/
+/data/CVC-ClinicDB/
+*.jpg
+*.json
