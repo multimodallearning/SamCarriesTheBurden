@@ -7,12 +7,11 @@ from torchmetrics import MeanMetric
 from tqdm import trange
 
 from custom_arcitecture.classic_u_net import UNet
-from custom_arcitecture.lraspp import LRASPPOnSAM
 from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
 from unet_training.forward_func import forward_bce
 from unet_training.hyper_params import hp_parser
 
-hp_parser.add_argument('--architecture', default='unet', choices=['unet', 'lraspp_on_sam'],
+hp_parser.add_argument('--architecture', default='unet', choices=['unet'],
                        help='which architecture to use')
 hp_parser.add_argument('--data_sample_per_epoch', type=int, default=48,
                        help='number of samples per epoch. Used for bootstrapping.')
@@ -48,8 +47,6 @@ val_dl = DataLoader(LightSegGrazPedWriDataset('val'), batch_size=hp.infer_batch_
 n_classes = train_dl.dataset.N_CLASSES
 if hp.architecture == 'unet':
     model = UNet(1, n_classes, n_last_channel=hp.n_last_channel)
-elif hp.architecture == 'lraspp_on_sam':
-    model = LRASPPOnSAM(n_classes=n_classes, n_last_channel=hp.n_last_channel)
 else:
     raise NotImplementedError('Unknown architecture')
 
