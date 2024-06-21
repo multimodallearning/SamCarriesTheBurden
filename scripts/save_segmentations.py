@@ -16,7 +16,7 @@ from utils.cvat_parser import CVATParser
 
 device = "cuda:3" if torch.cuda.is_available() else "cpu"
 
-model_id = 'a7364b31977e42a2a15ac511cfed358f'
+model_id = 'YOUR_MODEL_ID'
 print(f'Using model: {model_id}')
 cl_model = InputModel(model_id)
 model = UNet.load(cl_model.get_weights(), device).eval().to(device)

@@ -17,7 +17,7 @@ from utils.seg_refinement import SegEnhance, SAMSegRefiner
 
 device = "cuda:5" if torch.cuda.is_available() else "cpu"
 
-model_id = 'bf9286353ce649ef880774f62715c100'
+model_id = 'YOUR_MODEL_ID'
 cl_model = InputModel(model_id)
 model = UNet.load(cl_model.get_weights(), device).eval().to(device)
 H, W = 384, 224
