@@ -28,5 +28,5 @@ To use SAM to refine the segmentation masks, we have to set up two things first:
 + Download the model checkpoint for the ViT-H from the [official repository](https://github.com/facebookresearch/segment-anything?tab=readme-ov-file#model-checkpoints) and place it in the 'data' folder.
 + precompute SAM's image embedding to speed up the refinement process (believe me, you will run SAM on the same image at one point and you will be happy to have the embeddings precomputed). To do so, run 'scripts.save_refined_segmentations. Please use the same model id as before to load the correct initial segmentations.
 
-As a last step, we can train the final U-Net $f_\varphi$ on the refined segmentations. To do so, run 'python -m unet_training.training_on_pseudo_labels --gpu_id 2 --pseudo_label sam --prompt1st box --prompt2nd pos_points neg_points --num_train_samples 43' leaving all others hyperparameters on default.
+As a last step, we can train the final U-Net $f_\varphi$ on the refined segmentations. To do so, run 'python -m unet_training.training_on_pseudo_labels --gpu_id 0 --pseudo_label sam --prompt1st box --prompt2nd pos_points neg_points --num_train_samples 43' leaving all others hyperparameters on default.
 To evaluate the final model, you can reuse the 'scripts.save_segmentations' script and adjust the model id to the final model id.
