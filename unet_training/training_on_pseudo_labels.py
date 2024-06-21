@@ -12,7 +12,6 @@ from custom_arcitecture.classic_u_net import UNet
 from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset, SavedSegGrazPedWriDataset
 from unet_training.forward_func import forward_bce
 from unet_training.hyper_params import hp_parser
-from evaluation import clearml_model_id
 
 hp_parser.add_argument('--train_from_scratch', default=True, action=argparse.BooleanOptionalAction,
                        help='whether to train from scratch')
@@ -41,7 +40,7 @@ if hp.pseudo_label == 'sam':
 else:
     task_name = hp.pseudo_label + f'_num_train_{hp.num_train_samples}'
 
-initial_trained_model_id = clearml_model_id.unet_ids[hp.num_train_samples]
+initial_trained_model_id = 'YOUR_MODEL_ID'
 cl_model = InputModel(initial_trained_model_id)
 
 task = Task.init(project_name='Kids Bone Checker/Bone segmentation/pseudo label training',
