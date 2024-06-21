@@ -14,7 +14,7 @@ from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
 from utils.dice_coefficient import multilabel_dice
 
 # parameters
-architecture = 'UNet_mean_teacher'
+architecture = 'UNet_pseudo_lbl_sam'
 num_train_samples = 43
 print(f'Architecture: {architecture}, num_train_samples: {num_train_samples}')
 save_dir = Path(f'/home/ron/Desktop/plots/{architecture}')
@@ -38,7 +38,7 @@ elif architecture.startswith('SAM'):
 else:
     raise ValueError('Unknown architecture.')
 
-file2plot = '0476_0834388162_01_WRI-R1_F005'
+file2plot = '5280_0575502655_02_WRI-R1_M010'
 idx2plot = ds.available_file_names.index(file2plot)
 
 img, y, file_stem = ds[idx2plot]
@@ -61,7 +61,15 @@ plt.figure()
 plt.imshow(img, 'gray')
 plt.axis('off')
 plt.tight_layout()
-plt.gcf().savefig(save_dir / 'image.png', dpi=400)
+# add legend with bone label and color (using tab20 colormap)
+unique_values = y_hat.float().argmax(0).unique()
+norm = plt.Normalize(vmin=unique_values.min(), vmax=unique_values.max())
+cmap = plt.get_cmap('tab20')
+for i in unique_values:
+    plt.scatter([], [], color=cmap(norm(i)), label=ds.BONE_LABEL[i])
+# place legend bottom left and make it smaller and use bullet points
+plt.legend(loc='lower left', bbox_to_anchor=(0, 0), fontsize='xx-small')
+plt.gcf().savefig(save_dir / 'image.pdf', bbox_inches='tight', pad_inches=0)
 
 plt.figure()
 plt.imshow(img, 'gray')

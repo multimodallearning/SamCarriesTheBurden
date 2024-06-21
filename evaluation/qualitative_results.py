@@ -14,7 +14,7 @@ from utils.dice_coefficient import multilabel_dice
 # parameters
 architecture = 'UNet_pseudo_lbl_sam'
 num_train_samples = 43
-file_choice = 'best'
+file_choice = 'median'
 print(f'Architecture: {architecture}, num_train_samples: {num_train_samples}')
 
 ds = LightSegGrazPedWriDataset('test')
@@ -35,7 +35,7 @@ elif architecture.startswith('SAM'):
 else:
     raise ValueError('Unknown architecture.')
 
-df_dsc = pd.read_csv(f'evaluation/csv_results/{architecture}_raw_dsc.csv')
+df_dsc = pd.read_csv(f'evaluation/csv_results/wrist/{architecture}_raw_dsc.csv')
 df_dsc = df_dsc[df_dsc['Number training samples'] == num_train_samples]
 df_dsc = df_dsc[df_dsc['File stem'] != '0172_0304693626_01_WRI-R1_F014']
 # get file_stem
