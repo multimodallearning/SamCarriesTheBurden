@@ -10,25 +10,24 @@ from matplotlib import pyplot as plt
 import clearml_model_id
 from custom_arcitecture.classic_u_net import UNet
 from custom_arcitecture.lraspp import LRASPPOnSAM
-from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
+from scripts.dental_dataset import DentalDataset
 from utils.dice_coefficient import multilabel_dice
 
 # parameters
 architecture = 'UNet_mean_teacher'
-num_train_samples = 43
-print(f'Architecture: {architecture}, num_train_samples: {num_train_samples}')
+print(f'Architecture: {architecture}')
 save_dir = Path(f'/home/ron/Desktop/plots/{architecture}')
 save_dir.mkdir(exist_ok=True, parents=True)
 
-ds = LightSegGrazPedWriDataset('test')
+ds = DentalDataset('test')
 
 model_id = {
-    'UNet': clearml_model_id.unet_ids,
-    'UNet_pseudo_lbl_raw': clearml_model_id.raw_pseudo_lbl_unet_ids,
-    'UNet_pseudo_lbl_sam': clearml_model_id.sam_pseudo_lbl_unet_ids,
-    'SAM_LRASPP': clearml_model_id.sam_lraspp,
-    'UNet_mean_teacher': clearml_model_id.unet_mean_teacher_ids
-}[architecture][num_train_samples]
+    #'UNet': clearml_model_id.dental_models['unet_45_lbl'],
+    'UNet_pseudo_lbl_raw': clearml_model_id.dental_models['unet_raw_pseudo_lbl'],
+    'UNet_pseudo_lbl_sam': clearml_model_id.dental_models['unet_sam_pseudo_lbl'],
+    # 'SAM_LRASPP': clearml_model_id.sam_lraspp,
+    'UNet_mean_teacher': clearml_model_id.dental_models['mean_teacher']
+}[architecture]
 
 cl_model = InputModel(model_id)
 if architecture.startswith('UNet'):
@@ -38,8 +37,8 @@ elif architecture.startswith('SAM'):
 else:
     raise ValueError('Unknown architecture.')
 
-file2plot = '0476_0834388162_01_WRI-R1_F005'
-idx2plot = ds.available_file_names.index(file2plot)
+file2plot = '596'
+idx2plot = ds.available_files.index(file2plot)
 
 img, y, file_stem = ds[idx2plot]
 y = y.unsqueeze(0).bool()
@@ -65,14 +64,14 @@ plt.gcf().savefig(save_dir / 'image.png', dpi=400)
 
 plt.figure()
 plt.imshow(img, 'gray')
-plt.imshow(y.float().argmax(0), alpha=y.any(0).float() * .6, cmap='tab20', interpolation='nearest')
+plt.imshow(y.float().argmax(0), alpha=y.any(0).float() * .6, cmap='jet', interpolation='nearest')
 plt.axis('off')
 plt.tight_layout()
 plt.gcf().savefig(save_dir / 'gt.png', dpi=400)
 
 plt.figure()
 plt.imshow(img, 'gray')
-plt.imshow(y_hat.float().argmax(0), alpha=y_hat.any(0).float() * .6, cmap='tab20', interpolation='nearest')
+plt.imshow(y_hat.float().argmax(0), alpha=y_hat.any(0).float() * .6, cmap='jet', interpolation='nearest')
 plt.axis('off')
 plt.tight_layout()
 plt.gcf().savefig(save_dir / f'{architecture}.png', dpi=400)

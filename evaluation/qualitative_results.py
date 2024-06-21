@@ -8,24 +8,23 @@ from matplotlib import pyplot as plt
 import clearml_model_id
 from custom_arcitecture.classic_u_net import UNet
 from custom_arcitecture.lraspp import LRASPPOnSAM
-from scripts.seg_grazpedwri_dataset import LightSegGrazPedWriDataset
+from scripts.dental_dataset import DentalDataset
 from utils.dice_coefficient import multilabel_dice
 
 # parameters
 architecture = 'UNet_pseudo_lbl_sam'
-num_train_samples = 43
-file_choice = 'best'
-print(f'Architecture: {architecture}, num_train_samples: {num_train_samples}')
+file_choice = 'worst'
+print(f'Architecture: {architecture}')
 
-ds = LightSegGrazPedWriDataset('test')
+ds = DentalDataset('test')
 
 model_id = {
-    'UNet': clearml_model_id.unet_ids,
-    'UNet_pseudo_lbl_raw': clearml_model_id.raw_pseudo_lbl_unet_ids,
-    'UNet_pseudo_lbl_sam': clearml_model_id.sam_pseudo_lbl_unet_ids,
-    'SAM_LRASPP': clearml_model_id.sam_lraspp,
-    'UNet_mean_teacher': clearml_model_id.unet_mean_teacher_ids
-}[architecture][num_train_samples]
+    'UNet': clearml_model_id.dental_models['unet_45_lbl'],
+    # 'UNet_pseudo_lbl_raw': clearml_model_id.raw_pseudo_lbl_unet_ids,
+    'UNet_pseudo_lbl_sam': clearml_model_id.dental_models['unet_sam_pseudo_lbl'],
+    # 'SAM_LRASPP': clearml_model_id.sam_lraspp,
+    'UNet_mean_teacher': clearml_model_id.dental_models['mean_teacher']
+}[architecture]
 
 cl_model = InputModel(model_id)
 if architecture.startswith('UNet'):
@@ -35,19 +34,18 @@ elif architecture.startswith('SAM'):
 else:
     raise ValueError('Unknown architecture.')
 
-df_dsc = pd.read_csv(f'evaluation/csv_results/{architecture}_raw_dsc.csv')
-df_dsc = df_dsc[df_dsc['Number training samples'] == num_train_samples]
-df_dsc = df_dsc[df_dsc['File stem'] != '0172_0304693626_01_WRI-R1_F014']
+df_dsc = pd.read_csv(f'evaluation/csv_results/dental/{architecture}_raw_dsc.csv')
 # get file_stem
 if file_choice == 'median':
-    file2plot = df_dsc.loc[df_dsc['DSC mean'].quantile(q=0.5, interpolation='nearest') == df_dsc['DSC mean'], 'File stem'].values[0]
+    file2plot = \
+    df_dsc.loc[df_dsc['DSC mean'].quantile(q=0.5, interpolation='nearest') == df_dsc['DSC mean'], 'File stem'].values[0]
 elif file_choice == 'worst':
     file2plot = df_dsc.loc[df_dsc['DSC mean'].idxmin(), 'File stem']
 elif file_choice == 'best':
     file2plot = df_dsc.loc[df_dsc['DSC mean'].idxmax(), 'File stem']
 else:
     raise ValueError('Unknown file choice')
-idx2plot = ds.available_file_names.index(file2plot)
+idx2plot = ds.available_files.index(str(file2plot))
 print(f'File to plot: {file2plot}')
 
 img, y, file_stem = ds[idx2plot]
@@ -78,7 +76,7 @@ fig.suptitle(f'DSC: {dsc.nanmean().item():.3f}')
 fig.tight_layout()
 
 # iterate over all classes
-for lbl, lbl_idx in ds.BONE_LABEL_MAPPING.items():
+for lbl_idx, lbl in enumerate(ds.CLASS_LABEL):
     fig, ax = plt.subplots(1, 3)
     ax[0].imshow(img, 'gray')
     ax[0].set_title('Input image')

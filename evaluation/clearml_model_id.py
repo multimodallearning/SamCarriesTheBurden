@@ -65,5 +65,7 @@ dental_models = {
     'unet_all_lbl': 'df0fe1e79c384b498e8236bcd89f0c2b',
     'unet_raw_pseudo_lbl': '04678a5f6cd64c4bb6fce92074022a97',
     'unet_sam_pseudo_lbl': '274591116b004e348cfe34ac9608ba9e',
-    'mean_teacher': '3bdbce9d81b24aa796c389cd2e188313'
+    'mean_teacher': '3bdbce9d81b24aa796c389cd2e188313',
+    'mean_teacher_sam_selection': '50993098131d4087b11447131d45e125',
+    'sam_lraspp': '9f9cfea833c84ce998cddcd8414a9985'
 }
