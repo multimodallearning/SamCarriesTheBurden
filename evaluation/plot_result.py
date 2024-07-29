@@ -73,6 +73,7 @@ method_selection = ['nnU-Net BCE', 'SAM ViT + LRASPP', 'ours w/ SAM', 'Mean Teac
 df_melted = df.melt(id_vars=['Method', 'Number training samples', 'File stem'], value_vars=df.columns[4:].values)
 df_melted = df_melted.rename(columns={'variable': 'Anatomy', 'value': 'Dice'})
 df_melted['Dice'] *= 100
+df_melted = df_melted.groupby(['Method', 'Number training samples', 'File stem'])['Dice'].mean().reset_index()
 df_selected_methods = pd.concat([df_melted[df_melted['Method'] == method] for method in method_selection],
                                 ignore_index=True)
 
@@ -89,7 +90,7 @@ plt.figure(figsize=(10, 4))
 sns.pointplot(data=df_selected_methods, x='Number training samples', y='Dice', hue='Method', alpha=0, legend=False)
 boxplot_alpha = 0.7
 sns.boxplot(data=df_selected_methods_few_samples, x='Number training samples', y='Dice', hue='Method', fill=False,
-            linewidth=1.5, legend=False, notch=True, boxprops=dict(alpha=boxplot_alpha), whiskerprops=dict(alpha=boxplot_alpha),
+            linewidth=1.5, legend=False, notch=False, boxprops=dict(alpha=boxplot_alpha), whiskerprops=dict(alpha=boxplot_alpha),
             flierprops=dict(alpha=boxplot_alpha, marker='x'))
 ax = sns.pointplot(data=df_selected_methods, x='Number training samples', y='Dice', hue='Method', errorbar=None, dodge=True)
 sns.move_legend(ax, "lower center", bbox_to_anchor=(.475, 1), ncol=4, title=None, frameon=False)
@@ -110,7 +111,7 @@ sns.lineplot(data=df_selected_methods, x='Number training samples', y='Dice', hu
 # removing title of the legend
 plt.legend(title=None)
 
-# plt.savefig(f'/home/ron/Desktop/plot_curves/lineplot_dice {' '.join(method_selection)}.pdf', bbox_inches='tight',
-#             pad_inches=0)
+plt.savefig(f'/home/ron/Desktop/lineplot_dice {' '.join(method_selection)}.pdf', bbox_inches='tight',
+            pad_inches=0)
 
 plt.show()
